@@ -1,5 +1,7 @@
 # bundo
 
+**Docs:** [meslzy.github.io/bundo](https://meslzy.github.io/bundo/)
+
 A TypeScript-native task runner for [Bun](https://bun.com). Tasks live in a typed `do.ts` at your repo root — no YAML, no Makefile, no DSL. Full editor support (autocomplete, go-to-definition, refactoring), compile-time dependency checking, schema-validated environments, a parallel DAG scheduler, fingerprint caching, watch mode, and workspace awareness. Zero runtime dependencies.
 
 ```ts
@@ -91,10 +93,12 @@ bun add -g bundo
 | | make / just / Taskfile | turbo / nx | **bundo** |
 | --- | --- | --- | --- |
 | Task definitions | DSL / YAML strings | JSON config | **typed TypeScript** |
-| Dep name typos | runtime error | runtime error | **compile error + editor autocomplete** |
-| Env contracts | none | var allowlists | **Standard Schema validation before anything runs** |
-| Per-task CLI flags | none | none | **typed, with auto `--help` + completions** |
+| Dep name typos | caught at invocation | silent no-op / runtime | **compile error in your editor + did-you-mean** |
+| Env contracts | presence checks at best | filter/allowlist only | **Standard Schema validation before anything runs** |
+| Per-task CLI flags | untyped params (just) / raw args | executor schemas (nx) | **TypeScript-inferred, with auto `--help` + completions** |
 | Shell | your `/bin/sh` | your shell | **Bun Shell — cross-platform, injection-safe** |
+
+The honest long-form version — including what bundo **can't** do (no remote cache, skip-not-restore caching, Bun-only) and when to pick Turborepo/Nx/just instead — lives in the docs: [Why bundo?](https://meslzy.github.io/bundo/guide/why-bundo)
 
 ## The authoring API
 

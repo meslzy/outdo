@@ -1,0 +1,62 @@
+<!-- Mirrors the HELP text in src/cli.ts — update both together. -->
+
+# CLI Reference
+
+## Commands
+
+| command | what it does |
+| --- | --- |
+| `bundo` | list available tasks, grouped |
+| `bundo <task> [flags] [-- args]` | run a task and its dependency DAG |
+| `bundo <task1> <task2>` | run multiple tasks (shared deps run once) |
+| `bundo ls [--json]` | list tasks — machine-readable with `--json` |
+| `bundo graph [--dot] [--json]` | dependency graph as mermaid, graphviz dot, or JSON |
+| `bundo --print-env <task> [--json]` | resolved env with per-key provenance + schema verdict; never runs |
+| `bundo init` | scaffold a starter `do.ts` (+ gitignore `.bundo/`) |
+| `bundo completion <shell>` | completion script for `bash` \| `zsh` \| `fish` \| `powershell` |
+
+## Global flags
+
+Global flags go **before** the task name; everything after the task name belongs to the task.
+
+| flag | values | default | meaning |
+| --- | --- | --- | --- |
+| `-w, --watch` | | off | re-run affected tasks when watched files change |
+| `-j, --concurrency <n>` | integer ≥ 1 | CPU count | max parallel tasks |
+| `--continue` | | off | keep running independent tasks after a failure |
+| `--log-order <mode>` | `stream` \| `grouped` \| `auto` | `auto` | live prefixed lines vs per-task blocks (`auto`: stream in a TTY, grouped in CI) |
+| `--output-logs <mode>` | `full` \| `errors-only` \| `none` | `full` | how much child output to show |
+| `--dry[=json]` | | off | print the plan (incl. cache status) without running |
+| `-f, --force` | | off | ignore the fingerprint cache (still records fresh fingerprints) |
+| `-F, --filter <pattern>` | repeatable | | select workspace packages — see [Workspaces](/guide/workspaces#filtering-f-filter) |
+| `--json` | | off | machine-readable output (and JSON error shape on stderr) |
+| `--color <mode>` | `auto` \| `always` \| `never` | `auto` | also `--no-color`; honors `NO_COLOR` / `FORCE_COLOR` |
+| `-h, --help` | | | global help; `bundo <task> --help` shows the task's flags |
+| `-V, --version` | | | print the version |
+
+## Environment variables bundo reads
+
+| variable | effect |
+| --- | --- |
+| `NODE_ENV` | selects the [env cascade](/guide/env#the-cascade) layer (default `development`) |
+| `NO_COLOR` / `FORCE_COLOR` | color output off/on (flag `--color` wins) |
+| `BUNDO_WATCH_POLL=1` | force the polling watch backend |
+| `BUNDO_LOG=debug` | internal debug logging on stderr |
+
+## Shell completions
+
+```sh
+# bash (~/.bashrc)
+eval "$(bundo completion bash)"
+
+# zsh (~/.zshrc)
+eval "$(bundo completion zsh)"
+
+# fish
+bundo completion fish > ~/.config/fish/completions/bundo.fish
+
+# PowerShell ($PROFILE)
+bundo completion powershell | Out-String | Invoke-Expression
+```
+
+Completions are **dynamic**: task names, per-task flags, and subcommands come from your actual `do.ts` at TAB-time.

@@ -1,0 +1,44 @@
+<svg
+	height="64"
+	viewBox="0 0 64 64"
+	width="64"
+	xmlns="http://www.w3.org/2000/svg"
+>
+	<title>bundo</title>
+	<defs>
+		<linearGradient
+			id="bundo-g"
+			x1="0"
+			x2="1"
+			y1="0"
+			y2="1"
+		>
+			<stop
+				offset="0%"
+				stop-color="#f4a26b"
+			/>
+			<stop
+				offset="60%"
+				stop-color="#e8506b"
+			/>
+			<stop
+				offset="100%"
+				stop-color="#b56bf4"
+			/>
+		</linearGradient>
+	</defs>
+	<rect
+		fill="#151312"
+		height="60"
+		rx="14"
+		stroke="url(#bundo-g)"
+		stroke-width="3"
+		width="60"
+		x="2"
+		y="2"
+	/>
+	<path
+		d="M24 19 L46 32 L24 45 Z"
+		fill="url(#bundo-g)"
+	/>
+</svg>

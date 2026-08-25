@@ -1,0 +1,95 @@
+/**
+ * bundo brand: "terminal charcoal + amber-coral", dark-first.
+ */
+
+:root {
+	--vp-c-brand-1: #d97742;
+	--vp-c-brand-2: #c4642f;
+	--vp-c-brand-3: #a8501f;
+	--vp-c-brand-soft: rgba(217, 119, 66, 0.14);
+	--vp-font-family-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", "Cascadia Mono", monospace;
+}
+
+.dark {
+	--vp-c-brand-1: #f4a26b;
+	--vp-c-brand-2: #e88a4d;
+	--vp-c-brand-3: #d97742;
+	--vp-c-brand-soft: rgba(244, 162, 107, 0.16);
+	--vp-c-bg: #0f0e0d;
+	--vp-c-bg-alt: #151312;
+	--vp-c-bg-soft: #1c1917;
+	--vp-c-bg-elv: #1c1917;
+}
+
+/* --- Hero -------------------------------------------------------------- */
+
+:root {
+	--vp-home-hero-name-color: transparent;
+	--vp-home-hero-name-background: linear-gradient(120deg, #f4a26b 20%, #e8506b 60%, #b56bf4);
+	--vp-home-hero-image-background-image: linear-gradient(-45deg, #f4a26b55, #b56bf433);
+	--vp-home-hero-image-filter: blur(56px);
+}
+
+.VPHero .name {
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+/* --- Feature cards ------------------------------------------------------ */
+
+.VPFeature {
+	border: 1px solid transparent;
+	transition:
+		border-color 0.25s,
+		transform 0.25s,
+		box-shadow 0.25s;
+}
+
+.VPFeature:hover {
+	border-color: var(--vp-c-brand-1);
+	box-shadow: 0 8px 30px -12px var(--vp-c-brand-soft);
+	transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.VPFeature,
+	.VPFeature:hover {
+		transform: none;
+		transition: none;
+	}
+}
+
+/* --- Terminal palette (shared by AnimatedTerminal + inline demos) ------- */
+
+.t-cyan {
+	color: #56c8d8;
+}
+.t-magenta {
+	color: #d183e8;
+}
+.t-yellow {
+	color: #e8c56b;
+}
+.t-green {
+	color: #71d58a;
+}
+.t-red {
+	color: #f2707a;
+}
+.t-dim {
+	color: #8a837c;
+}
+
+/* --- Small polish -------------------------------------------------------- */
+
+.vp-doc a {
+	text-underline-offset: 3px;
+}
+
+.vp-doc div[class*="language-"] {
+	border: 1px solid var(--vp-c-divider);
+}
+
+.dark .vp-doc div[class*="language-"] {
+	border-color: #262220;
+}

@@ -58,4 +58,27 @@ export default defineTasks({
 			await $`bun pm pack`;
 		},
 	},
+	"docs:dev": {
+		group: "Docs",
+		desc: "Docs dev server (VitePress)",
+		persistent: true,
+		run: async ({ $ }) => {
+			await $`bun run docs:dev`;
+		},
+	},
+	"docs:build": {
+		group: "Docs",
+		desc: "Build the docs site",
+		inputs: [
+			"docs/**",
+			"!docs/.vitepress/dist/**",
+			"!docs/.vitepress/cache/**",
+		],
+		outputs: [
+			"docs/.vitepress/dist/**",
+		],
+		run: async ({ $ }) => {
+			await $`bun run docs:build`;
+		},
+	},
 });
