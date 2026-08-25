@@ -4,7 +4,9 @@
 	"enforcement": "active",
 	"conditions": {
 		"ref_name": {
-			"include": ["~DEFAULT_BRANCH"],
+			"include": [
+				"~DEFAULT_BRANCH"
+			],
 			"exclude": []
 		}
 	},
@@ -21,12 +23,30 @@
 				"strict_required_status_checks_policy": true,
 				"do_not_enforce_on_create": false,
 				"required_status_checks": [
-					{ "context": "test (ubuntu-latest, 1.4.0)", "integration_id": 15368 },
-					{ "context": "test (ubuntu-latest, latest)", "integration_id": 15368 },
-					{ "context": "test (macos-latest, 1.4.0)", "integration_id": 15368 },
-					{ "context": "test (macos-latest, latest)", "integration_id": 15368 },
-					{ "context": "test (windows-latest, 1.4.0)", "integration_id": 15368 },
-					{ "context": "test (windows-latest, latest)", "integration_id": 15368 }
+					{
+						"context": "test (ubuntu-latest, 1.4.0)",
+						"integration_id": 15368
+					},
+					{
+						"context": "test (ubuntu-latest, latest)",
+						"integration_id": 15368
+					},
+					{
+						"context": "test (macos-latest, 1.4.0)",
+						"integration_id": 15368
+					},
+					{
+						"context": "test (macos-latest, latest)",
+						"integration_id": 15368
+					},
+					{
+						"context": "test (windows-latest, 1.4.0)",
+						"integration_id": 15368
+					},
+					{
+						"context": "test (windows-latest, latest)",
+						"integration_id": 15368
+					}
 				]
 			}
 		}
