@@ -206,3 +206,27 @@ describe("env cascade + validation", () => {
 		]);
 	});
 });
+
+describe("passthrough routing (M4)", () => {
+	test("rest goes only to the requested task, never deps", async () => {
+		const { exitCode, stdout } = await runCli(BASIC, [
+			"rest:echo",
+			"--",
+			"--raw",
+			"-x",
+			"pos",
+		]);
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain('echo-rest:["--raw","-x","pos"]');
+		expect(stdout).toContain("dep-rest:[]");
+	});
+
+	test("boolean short flag with value-less syntax", async () => {
+		const { exitCode, stdout } = await runCli(BASIC, [
+			"greet",
+			"-h",
+		]);
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain("Usage: bundo greet");
+	});
+});

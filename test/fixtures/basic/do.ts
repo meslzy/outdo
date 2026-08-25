@@ -24,6 +24,21 @@ export default defineTasks({
 			console.log("built");
 		},
 	},
+	"rest:dep": {
+		desc: "Helper that shows its rest args",
+		run: ({ rest }) => {
+			console.log(`dep-rest:${JSON.stringify(rest)}`);
+		},
+	},
+	"rest:echo": {
+		desc: "Echo passthrough args",
+		deps: [
+			"rest:dep",
+		],
+		run: ({ rest }) => {
+			console.log(`echo-rest:${JSON.stringify(rest)}`);
+		},
+	},
 	greet: task({
 		desc: "Print a greeting",
 		args: {

@@ -59,6 +59,8 @@ describe("bundo list", () => {
 			"docker:up",
 			"db:reset",
 			"build",
+			"rest:dep",
+			"rest:echo",
 			"greet",
 		]);
 		const greet = parsed.tasks.find((t: { name: string }) => t.name === "greet");

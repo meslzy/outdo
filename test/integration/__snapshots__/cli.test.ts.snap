@@ -9,6 +9,8 @@ Infra
 
 Other
   build      Build all packages
+  rest:dep   Helper that shows its rest args
+  rest:echo  Echo passthrough args  (deps: rest:dep)
   greet      Print a greeting
 
 run a task with "bundo <task>" — details with "bundo ls --json"
