@@ -36,7 +36,7 @@ type RunCommand = Extract<
 >;
 
 export async function runCommand(command: RunCommand, flags: GlobalFlags): Promise<number> {
-	const project = await loadProjectFromCwd();
+	const project = await loadProjectFromCwd(flags.filter);
 	const requested = resolveRequested(project, command.tasks);
 
 	// Per-task flags only make sense for a single task.
@@ -380,22 +380,47 @@ function resolveRequested(project: Project, names: string[]): Task[] {
 	if (names.length === 0) {
 		throw new BundoError("usage", "No task given.");
 	}
-	return names.map((name) => {
-		const task = project.tasks.get(name);
-		if (task === undefined) {
-			const hint = didYouMean(name, [
-				...project.tasks.keys(),
-			]);
-			throw new BundoError(
-				"unknown-task",
-				`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "bundo" to list tasks.`,
-				{
-					task: name,
-				},
-			);
+	const out: Task[] = [];
+	const seen = new Set<string>();
+	const add = (task: Task): void => {
+		if (!seen.has(task.name)) {
+			seen.add(task.name);
+			out.push(task);
 		}
-		return task;
-	});
+	};
+	for (const name of names) {
+		// A bare name fans out: the root task (if any) plus every member task
+		// `pkg#name`. Qualified names target exactly one task.
+		const matches: Task[] = [];
+		const exact = project.tasks.get(name);
+		if (exact !== undefined) {
+			matches.push(exact);
+		}
+		if (!name.includes("#")) {
+			for (const task of project.tasks.values()) {
+				if (task.localName === name && task.name.includes("#")) {
+					matches.push(task);
+				}
+			}
+		}
+		if (matches.length > 0) {
+			for (const task of matches) {
+				add(task);
+			}
+			continue;
+		}
+		const hint = didYouMean(name, [
+			...project.tasks.keys(),
+		]);
+		throw new BundoError(
+			"unknown-task",
+			`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "bundo" to list tasks.`,
+			{
+				task: name,
+			},
+		);
+	}
+	return out;
 }
 
 function applyDefaults(task: Task): Record<string, string | boolean | undefined> {

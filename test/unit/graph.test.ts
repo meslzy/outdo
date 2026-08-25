@@ -20,6 +20,8 @@ function makeTasks(defs: Record<string, string[]>): Map<string, Task> {
 			cwd: process.cwd(),
 			run: undefined,
 			built: false,
+			sourceConfig: "do.ts",
+			localName: name,
 		});
 	}
 	return map;

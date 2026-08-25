@@ -75,8 +75,8 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 
 	proc.send({
 		type: "run",
-		configPath: opts.configPath,
-		taskName: task.name,
+		configPath: task.sourceConfig,
+		taskName: task.localName,
 		env: opts.envOutputs.get(task.name) ?? opts.shellEnv,
 		shellEnv: opts.shellEnv,
 		args: opts.argsFor(task),

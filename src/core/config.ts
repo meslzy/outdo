@@ -106,6 +106,8 @@ export async function loadProject(configPath: string): Promise<Project> {
 			cwd: isAbsolute(cwd) ? cwd : resolve(rootDir, cwd),
 			run: typeof entry.run === "function" ? (entry.run as (ctx: TaskCtx<unknown, unknown>) => unknown) : undefined,
 			built: entry["~built"] === true,
+			sourceConfig: absPath,
+			localName: name,
 		});
 	}
 

@@ -8,7 +8,7 @@ import { bold, cyan, dim, green, red } from "~/core/logger";
 import { didYouMean } from "~/core/util";
 
 export async function printEnvCommand(taskName: string, flags: GlobalFlags): Promise<number> {
-	const project = await loadProjectFromCwd();
+	const project = await loadProjectFromCwd(flags.filter);
 	const task = project.tasks.get(taskName);
 	if (task === undefined) {
 		const hint = didYouMean(taskName, [

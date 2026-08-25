@@ -52,7 +52,7 @@ async function main(): Promise<number> {
 		case "list": {
 			const { loadProjectFromCwd } = await import("~/cli/load");
 			const { listJson, renderList } = await import("~/cli/list");
-			const project = await loadProjectFromCwd();
+			const project = await loadProjectFromCwd(flags.filter);
 			if (flags.json) {
 				console.log(JSON.stringify(listJson(project), null, 2));
 			} else {
