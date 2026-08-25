@@ -25,6 +25,7 @@ interface PackageJson {
 		  };
 	dependencies?: Record<string, string>;
 	devDependencies?: Record<string, string>;
+	peerDependencies?: Record<string, string>;
 }
 
 export interface WorkspaceMember {
@@ -116,6 +117,7 @@ export async function enumerateMembers(root: WorkspaceRoot): Promise<WorkspaceMe
 			deps: Object.keys({
 				...pkg.dependencies,
 				...pkg.devDependencies,
+				...pkg.peerDependencies,
 			}),
 		});
 	}

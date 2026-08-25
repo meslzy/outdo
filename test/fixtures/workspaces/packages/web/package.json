@@ -1,6 +1,6 @@
 {
 	"name": "web",
-	"dependencies": {
+	"peerDependencies": {
 		"lib": "workspace:*"
 	}
 }

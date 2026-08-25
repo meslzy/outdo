@@ -54,7 +54,7 @@ bundo -F api -F web build # filters union
 
 :::
 
-Dependency relations come from member `package.json` `dependencies`/`devDependencies` narrowed to workspace-internal packages.
+Dependency relations come from member `package.json` `dependencies`/`devDependencies`/`peerDependencies` narrowed to workspace-internal packages.
 
 ::: tip
 When filters are given, **root tasks are excluded** — filters select packages. A filter matching nothing is a usage error, not a silent no-op.
