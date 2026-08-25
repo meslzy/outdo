@@ -21,6 +21,13 @@ export interface StartedTask {
 	unblocked: Promise<void>;
 	/** Final outcome. For services this resolves only when the service exits. */
 	result: Promise<TaskResult>;
+	/** Cooperative stop (services) — used by watch mode to restart them. */
+	stop?: () => Promise<void>;
+}
+
+export interface ServiceHandle {
+	result: Promise<TaskResult>;
+	stop: () => Promise<void>;
 }
 
 export interface ScheduleOptions {
@@ -38,8 +45,8 @@ export interface ScheduleOptions {
 export interface ScheduleOutcome {
 	results: Map<string, TaskResult>;
 	failed: boolean;
-	/** Result promises of persistent tasks still running when the DAG drained. */
-	services: Map<string, Promise<TaskResult>>;
+	/** Persistent tasks still running when the DAG drained. */
+	services: Map<string, ServiceHandle>;
 }
 
 export async function schedule(opts: ScheduleOptions): Promise<ScheduleOutcome> {
@@ -61,7 +68,7 @@ export async function schedule(opts: ScheduleOptions): Promise<ScheduleOutcome> 
 	}
 
 	const results = new Map<string, TaskResult>();
-	const services = new Map<string, Promise<TaskResult>>();
+	const services = new Map<string, ServiceHandle>();
 	const running = new Set<Promise<void>>();
 	const ready: string[] = opts.planned.filter((name) => indegree.get(name) === 0);
 	let slots = 0;
@@ -92,7 +99,10 @@ export async function schedule(opts: ScheduleOptions): Promise<ScheduleOutcome> 
 		const tracked = (async () => {
 			if (task.persistent) {
 				await started.unblocked;
-				services.set(name, started.result);
+				services.set(name, {
+					result: started.result,
+					stop: started.stop ?? (async () => {}),
+				});
 				results.set(name, {
 					name,
 					status: "ok",

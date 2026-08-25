@@ -24,7 +24,7 @@ import { Lifecycle } from "~/core/lifecycle";
 import { dim, green, red, yellow } from "~/core/logger";
 import type { Project, Task } from "~/core/model";
 import { OutputMultiplexer } from "~/core/output";
-import type { TaskResult } from "~/core/scheduler";
+import type { StartedTask, TaskResult } from "~/core/scheduler";
 import { isChain, schedule } from "~/core/scheduler";
 import { didYouMean } from "~/core/util";
 
@@ -95,12 +95,16 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		return printDryRun(planned, requested, flags, decisions);
 	}
 
+	if (flags.watch) {
+		const { runWatch } = await import("~/cli/watch-run");
+		return await runWatch(shared, flags);
+	}
 	const hasServices = planned.some((task) => task.persistent);
 	const sequentialOk = !flags.isolate && !hasServices && isChain(project.tasks, order);
 	return sequentialOk ? await runSequential(shared) : await runParallel(shared, flags);
 }
 
-interface SharedRunState {
+export interface SharedRunState {
 	project: Project;
 	planned: Task[];
 	requestedNames: Set<string>;
@@ -121,6 +125,69 @@ function argsFor(state: SharedRunState, task: Task): Record<string, string | boo
 
 function restFor(state: SharedRunState, task: Task): string[] {
 	return state.requestedNames.has(task.name) ? state.rest : [];
+}
+
+/**
+ * Build the scheduler `start` function shared by plain parallel runs and
+ * watch mode. The cache decision is async (hashing) but the scheduler expects
+ * a synchronous start — bridged with a promise of the started task.
+ */
+export function makeStart(
+	state: SharedRunState,
+	mux: OutputMultiplexer,
+	lifecycleFor: (task: Task) => Lifecycle,
+): (task: Task) => StartedTask {
+	return (task) => {
+		const startedP = (async () => {
+			const decision = await decideCache(state, task);
+			if (cacheable(task) && decision.hit) {
+				const result: TaskResult = {
+					name: task.name,
+					status: "ok",
+					durationMs: 0,
+					cached: true,
+				};
+				console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
+				return {
+					unblocked: Promise.resolve(),
+					result: Promise.resolve(result),
+				} satisfies StartedTask;
+			}
+			const started = startChildTask(task, {
+				configPath: state.project.configPath,
+				shellEnv: state.shellEnv,
+				envOutputs: state.envOutputs,
+				argsFor: (t) => argsFor(state, t),
+				restFor: (t) => restFor(state, t),
+				sinkFor: () => mux.sink(task.name),
+				lifecycle: lifecycleFor(task),
+			});
+			const finalized = started.result.then(async (result) => {
+				if (result.status === "ok" && cacheable(task)) {
+					await writeCache(state.project.rootDir, task, decision);
+				}
+				printStatus(task, result);
+				return result;
+			});
+			return {
+				unblocked: started.unblocked,
+				result: finalized,
+				...(started.stop !== undefined
+					? {
+							stop: started.stop,
+						}
+					: {}),
+			} satisfies StartedTask;
+		})();
+		return {
+			unblocked: startedP.then((s) => s.unblocked),
+			result: startedP.then((s) => s.result),
+			stop: async () => {
+				const s = await startedP;
+				await s.stop?.();
+			},
+		};
+	};
 }
 
 /**
@@ -223,50 +290,7 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 			planned: state.planned.map((t) => t.name),
 			concurrency,
 			continueOnError: flags.continueOnError,
-			start: (task) => {
-				// The cache decision is async (hashing) but the scheduler expects a
-				// synchronous start — bridge with a promise of the started task.
-				const startedP = (async () => {
-					const decision = await decideCache(state, task);
-					if (cacheable(task) && decision.hit) {
-						const result: TaskResult = {
-							name: task.name,
-							status: "ok",
-							durationMs: 0,
-							cached: true,
-						};
-						console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
-						return {
-							unblocked: Promise.resolve(),
-							result: Promise.resolve(result),
-						};
-					}
-					const started = startChildTask(task, {
-						configPath: state.project.configPath,
-						shellEnv: state.shellEnv,
-						envOutputs: state.envOutputs,
-						argsFor: (t) => argsFor(state, t),
-						restFor: (t) => restFor(state, t),
-						sinkFor: () => mux.sink(task.name),
-						lifecycle,
-					});
-					const finalized = started.result.then(async (result) => {
-						if (result.status === "ok" && cacheable(task)) {
-							await writeCache(state.project.rootDir, task, decision);
-						}
-						printStatus(task, result);
-						return result;
-					});
-					return {
-						unblocked: started.unblocked,
-						result: finalized,
-					};
-				})();
-				return {
-					unblocked: startedP.then((s) => s.unblocked),
-					result: startedP.then((s) => s.result),
-				};
-			},
+			start: makeStart(state, mux, () => lifecycle),
 			onAbort: () => lifecycle.shutdown(),
 		});
 
@@ -289,7 +313,11 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 
 		// Services keep the run alive until Ctrl-C or a service exits by itself.
 		if (outcome.services.size > 0) {
-			const exited = await Promise.race(outcome.services.values());
+			const exited = await Promise.race(
+				[
+					...outcome.services.values(),
+				].map((handle) => handle.result),
+			);
 			if (interrupted || lifecycle.shuttingDown) {
 				throw new BundoError("interrupted", "Interrupted.");
 			}
@@ -310,7 +338,7 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 	}
 }
 
-function printStatus(task: Task, result: TaskResult): void {
+export function printStatus(task: Task, result: TaskResult): void {
 	if (result.status === "ok" && !task.persistent) {
 		console.error(`${green("✓")} ${task.name} ${dim(`(${result.durationMs}ms)`)}`);
 	} else if (result.status === "failed") {
@@ -318,7 +346,7 @@ function printStatus(task: Task, result: TaskResult): void {
 	}
 }
 
-function printSummary(results: ReadonlyMap<string, TaskResult>): void {
+export function printSummary(results: ReadonlyMap<string, TaskResult>): void {
 	const all = [
 		...results.values(),
 	];

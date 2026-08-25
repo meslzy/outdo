@@ -116,5 +116,6 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 		// v1: services unblock dependents as soon as the worker has spawned.
 		unblocked: task.persistent ? Promise.resolve() : result.then(() => {}),
 		result,
+		stop: () => opts.lifecycle.stop(proc),
 	};
 }
