@@ -1,14 +1,29 @@
-/** The run pipeline. M2: sequential in-process execution in topo order. */
+/**
+ * The run pipeline.
+ *
+ * Backend choice (automatic):
+ * - in-process sequential — pure dependency chains with no services and no
+ *   --isolate: zero spawn overhead, stdio fully inherited (TTY colors,
+ *   interactive prompts work).
+ * - child processes — anything that can parallelize, contains a persistent
+ *   service, or was forced with --isolate: piped stdio, prefixed multiplexed
+ *   output, cooperative abort + tree kill.
+ */
 
 import { loadProjectFromCwd } from "~/cli/load";
 import type { Command, GlobalFlags } from "~/cli/parse";
 import { parseTaskArgs, renderTaskHelp, wantsTaskHelp } from "~/core/argspec";
+import { startChildTask } from "~/core/child";
 import { resolveEnv, validateAll } from "~/core/envresolve";
 import { BundoError, EXIT } from "~/core/errors";
 import { buildCtx, runTaskInProcess } from "~/core/executor";
 import { subgraphFor, topoOrder } from "~/core/graph";
-import { dim, green, red } from "~/core/logger";
+import { Lifecycle } from "~/core/lifecycle";
+import { dim, green, red, yellow } from "~/core/logger";
 import type { Project, Task } from "~/core/model";
+import { OutputMultiplexer } from "~/core/output";
+import type { TaskResult } from "~/core/scheduler";
+import { isChain, schedule } from "~/core/scheduler";
 import { didYouMean } from "~/core/util";
 
 type RunCommand = Extract<
@@ -53,7 +68,47 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		return printDryRun(planned, requested, flags);
 	}
 
-	// Ctrl-C: abort the current task, exit 130. A second Ctrl-C exits hard.
+	const requestedNames = new Set(requested.map((t) => t.name));
+	const hasServices = planned.some((task) => task.persistent);
+	const sequentialOk = !flags.isolate && !hasServices && isChain(project.tasks, order);
+
+	const shared: SharedRunState = {
+		project,
+		planned,
+		requestedNames,
+		target,
+		targetArgs,
+		rest: command.rest,
+		shellEnv: resolved.env,
+		envOutputs,
+	};
+	return sequentialOk ? await runSequential(shared) : await runParallel(shared, flags);
+}
+
+interface SharedRunState {
+	project: Project;
+	planned: Task[];
+	requestedNames: Set<string>;
+	target: Task;
+	targetArgs: Record<string, string | boolean | undefined>;
+	rest: string[];
+	shellEnv: Record<string, string | undefined>;
+	envOutputs: ReadonlyMap<string, unknown>;
+}
+
+function argsFor(state: SharedRunState, task: Task): Record<string, string | boolean | undefined> {
+	return task === state.target ? state.targetArgs : applyDefaults(task);
+}
+
+function restFor(state: SharedRunState, task: Task): string[] {
+	return state.requestedNames.has(task.name) ? state.rest : [];
+}
+
+// ---------------------------------------------------------------------------
+// Sequential (in-process) backend
+// ---------------------------------------------------------------------------
+
+async function runSequential(state: SharedRunState): Promise<number> {
 	const aborter = new AbortController();
 	let interrupted = false;
 	const onSigint = (): void => {
@@ -65,45 +120,155 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 	};
 	process.on("SIGINT", onSigint);
 
-	const requestedNames = new Set(requested.map((t) => t.name));
 	try {
-		for (const task of planned) {
+		for (const task of state.planned) {
 			if (interrupted) {
 				throw new BundoError("interrupted", "Interrupted.");
 			}
-			const isRequested = requestedNames.has(task.name);
 			const started = performance.now();
 			const ctx = buildCtx(task, {
-				env: envOutputs.get(task.name) ?? resolved.env,
-				shellEnv: resolved.env,
-				args: isRequested && task === target ? targetArgs : applyDefaults(task),
-				rest: isRequested ? command.rest : [],
+				env: state.envOutputs.get(task.name) ?? state.shellEnv,
+				shellEnv: state.shellEnv,
+				args: argsFor(state, task),
+				rest: restFor(state, task),
 				signal: aborter.signal,
 			});
 			await runTaskInProcess(task, ctx);
 			const ms = Math.round(performance.now() - started);
 			console.error(`${green("✓")} ${task.name} ${dim(`(${ms}ms)`)}`);
 		}
-	} catch (error) {
-		if (error instanceof BundoError && error.code === "task-failed") {
-			console.error(
-				`${red("✗")} ${String(
-					(
-						error.detail as
-							| {
-									task?: string;
-							  }
-							| undefined
-					)?.task ?? "",
-				)}`.trimEnd(),
-			);
-		}
-		throw error;
 	} finally {
 		process.off("SIGINT", onSigint);
 	}
 	return EXIT.ok;
 }
+
+// ---------------------------------------------------------------------------
+// Parallel (child-process) backend
+// ---------------------------------------------------------------------------
+
+async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<number> {
+	const isTty = process.stdout.isTTY === true;
+	const logOrder = flags.logOrder === "auto" ? (isTty ? "stream" : "grouped") : flags.logOrder;
+	const concurrency = flags.concurrency ?? Math.max(1, navigator.hardwareConcurrency ?? 4);
+	const mux = new OutputMultiplexer(
+		logOrder,
+		flags.outputLogs,
+		state.planned.map((t) => t.name),
+	);
+	const lifecycle = new Lifecycle();
+
+	let interrupted = false;
+	const onSigint = (): void => {
+		if (interrupted) {
+			lifecycle.killAll();
+			process.exit(EXIT.interrupted);
+		}
+		interrupted = true;
+		console.error(dim("interrupt — stopping tasks (Ctrl-C again to force)"));
+		void lifecycle.shutdown();
+	};
+	process.on("SIGINT", onSigint);
+
+	try {
+		const outcome = await schedule({
+			tasks: state.project.tasks,
+			planned: state.planned.map((t) => t.name),
+			concurrency,
+			continueOnError: flags.continueOnError,
+			start: (task) => {
+				const started = startChildTask(task, {
+					configPath: state.project.configPath,
+					shellEnv: state.shellEnv,
+					envOutputs: state.envOutputs,
+					argsFor: (t) => argsFor(state, t),
+					restFor: (t) => restFor(state, t),
+					sinkFor: () => mux.sink(task.name),
+					lifecycle,
+				});
+				void started.result.then((result) => printStatus(task, result));
+				return started;
+			},
+			onAbort: () => lifecycle.shutdown(),
+		});
+
+		if (interrupted) {
+			throw new BundoError("interrupted", "Interrupted.");
+		}
+
+		const failedResults = [
+			...outcome.results.values(),
+		].filter((r) => r.status === "failed");
+		if (failedResults.length > 0 || outcome.failed) {
+			printSummary(outcome.results);
+			throw new BundoError("task-failed", failureMessage(failedResults), {
+				failed: failedResults.map((r) => ({
+					task: r.name,
+					error: r.error,
+				})),
+			});
+		}
+
+		// Services keep the run alive until Ctrl-C or a service exits by itself.
+		if (outcome.services.size > 0) {
+			const exited = await Promise.race(outcome.services.values());
+			if (interrupted || lifecycle.shuttingDown) {
+				throw new BundoError("interrupted", "Interrupted.");
+			}
+			await lifecycle.shutdown();
+			throw new BundoError(
+				"task-failed",
+				`Service "${exited.name}" exited unexpectedly (${exited.error ?? "no error"}).`,
+				{
+					task: exited.name,
+				},
+			);
+		}
+
+		printSummary(outcome.results);
+		return EXIT.ok;
+	} finally {
+		process.off("SIGINT", onSigint);
+	}
+}
+
+function printStatus(task: Task, result: TaskResult): void {
+	if (result.status === "ok" && !task.persistent) {
+		console.error(`${green("✓")} ${task.name} ${dim(`(${result.durationMs}ms)`)}`);
+	} else if (result.status === "failed") {
+		console.error(`${red("✗")} ${task.name} ${dim(`(${result.durationMs}ms)`)} ${result.error ?? ""}`.trimEnd());
+	}
+}
+
+function printSummary(results: ReadonlyMap<string, TaskResult>): void {
+	const all = [
+		...results.values(),
+	];
+	const ok = all.filter((r) => r.status === "ok").length;
+	const failed = all.filter((r) => r.status === "failed").length;
+	const skipped = all.filter((r) => r.status === "skipped" || r.status === "aborted").length;
+	const parts = [
+		`${ok} ok`,
+	];
+	if (failed > 0) {
+		parts.push(red(`${failed} failed`));
+	}
+	if (skipped > 0) {
+		parts.push(yellow(`${skipped} skipped`));
+	}
+	console.error(dim(`— ${parts.join(", ")}`));
+}
+
+function failureMessage(failed: TaskResult[]): string {
+	if (failed.length === 1) {
+		const one = failed[0] as TaskResult;
+		// Worker errors are already prefixed with the task name.
+		return one.error ?? `Task "${one.name}" failed.`;
+	}
+	return `${failed.length} tasks failed: ${failed.map((r) => r.name).join(", ")}`;
+}
+
+// ---------------------------------------------------------------------------
 
 function resolveRequested(project: Project, names: string[]): Task[] {
 	if (names.length === 0) {

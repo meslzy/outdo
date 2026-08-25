@@ -54,6 +54,9 @@ export type Command =
 	  }
 	| {
 			kind: "version";
+	  }
+	| {
+			kind: "worker";
 	  };
 
 export interface ParsedCli {
@@ -187,6 +190,16 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 	const terminatorIdx = argv.indexOf("--");
 	const rest = terminatorIdx === -1 ? [] : argv.slice(terminatorIdx + 1).map(String);
 	const head = (terminatorIdx === -1 ? argv : argv.slice(0, terminatorIdx)).map(normalizeToken);
+
+	// `__worker` is the hidden child-process entry — IPC-driven, no flags.
+	if (head[0] === "__worker") {
+		return {
+			command: {
+				kind: "worker",
+			},
+			flags: defaultsOnly(),
+		};
+	}
 
 	// `__complete` receives the raw shell words verbatim — bypass parsing.
 	if (head[0] === "__complete") {

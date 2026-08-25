@@ -84,6 +84,10 @@ async function main(): Promise<number> {
 			const { completeCommand } = await import("~/cli/complete");
 			return await completeCommand(command.words);
 		}
+		case "worker": {
+			const { workerCommand } = await import("~/cli/worker");
+			return await workerCommand();
+		}
 	}
 }
 
