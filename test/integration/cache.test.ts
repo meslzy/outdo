@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { cpSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli } from "./cli.test";
+import { runCli } from "./helpers";
 
 const FIXTURE = join(import.meta.dir, "..", "fixtures", "cache");
 

@@ -1,45 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
+import { runCli } from "./helpers";
 
-const CLI = join(import.meta.dir, "..", "..", "src", "cli.ts");
 const FIXTURES = join(import.meta.dir, "..", "fixtures");
-
-export interface CliResult {
-	exitCode: number;
-	stdout: string;
-	stderr: string;
-}
-
-export async function runCli(cwd: string, args: string[], env?: Record<string, string>): Promise<CliResult> {
-	const proc = Bun.spawn(
-		[
-			process.execPath,
-			CLI,
-			"--color=never",
-			...args,
-		],
-		{
-			cwd,
-			stdout: "pipe",
-			stderr: "pipe",
-			env: {
-				...process.env,
-				NO_COLOR: "1",
-				...env,
-			},
-		},
-	);
-	const [stdout, stderr, exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
-	return {
-		exitCode,
-		stdout,
-		stderr,
-	};
-}
 
 describe("bundo list", () => {
 	test("renders the grouped task list", async () => {

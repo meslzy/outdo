@@ -7,21 +7,21 @@ export default defineTasks({
 		group: "Verify",
 		desc: "TypeScript gate (includes compile-time type tests)",
 		run: async ({ $ }) => {
-			await $`bunx tsc --noEmit`;
+			await $`bun run typecheck`;
 		},
 	},
 	lint: {
 		group: "Verify",
 		desc: "Biome lint + format check",
 		run: async ({ $ }) => {
-			await $`bunx biome check .`;
+			await $`bun run lint`;
 		},
 	},
 	test: {
 		group: "Verify",
 		desc: "Full test suite",
 		run: async ({ $ }) => {
-			await $`bun test`;
+			await $`bun run test`;
 		},
 	},
 	check: {
@@ -45,7 +45,7 @@ export default defineTasks({
 			"dist/**",
 		],
 		run: async ({ $ }) => {
-			await $`bun scripts/build.ts`;
+			await $`bun run build`;
 		},
 	},
 	pack: {

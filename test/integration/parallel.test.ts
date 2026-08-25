@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { runCli } from "./cli.test";
+import { runCli } from "./helpers";
 
 const FIXTURES = join(import.meta.dir, "..", "fixtures");
 const DIAMOND = join(FIXTURES, "diamond");

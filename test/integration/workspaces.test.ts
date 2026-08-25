@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { runCli } from "./cli.test";
+import { runCli } from "./helpers";
 
 const WS = join(import.meta.dir, "..", "fixtures", "workspaces");
 
