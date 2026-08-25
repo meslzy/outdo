@@ -1,0 +1,18 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`bundo list renders the grouped task list 1`] = `
+"tasks in do.ts
+
+Infra
+  docker:up  Start local containers
+  db:reset   Reset the local database  (deps: docker:up)
+
+Other
+  build      Build all packages
+  rest:dep   Helper that shows its rest args
+  rest:echo  Echo passthrough args  (deps: rest:dep)
+  greet      Print a greeting
+
+run a task with "bundo <task>" — details with "bundo ls --json"
+"
+`;

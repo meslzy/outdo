@@ -13,6 +13,8 @@
 import { loadProjectFromCwd } from "~/cli/load";
 import type { Command, GlobalFlags } from "~/cli/parse";
 import { parseTaskArgs, renderTaskHelp, wantsTaskHelp } from "~/core/argspec";
+import type { CacheDecision } from "~/core/cache";
+import { cacheable, checkCache, writeCache } from "~/core/cache";
 import { startChildTask } from "~/core/child";
 import { resolveEnv, validateAll } from "~/core/envresolve";
 import { BundoError, EXIT } from "~/core/errors";
@@ -64,14 +66,7 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 	const planned = order.map((name) => project.tasks.get(name) as Task);
 	const envOutputs = await validateAll(planned, resolved.env);
 
-	if (flags.dry !== false) {
-		return printDryRun(planned, requested, flags);
-	}
-
 	const requestedNames = new Set(requested.map((t) => t.name));
-	const hasServices = planned.some((task) => task.persistent);
-	const sequentialOk = !flags.isolate && !hasServices && isChain(project.tasks, order);
-
 	const shared: SharedRunState = {
 		project,
 		planned,
@@ -81,7 +76,27 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		rest: command.rest,
 		shellEnv: resolved.env,
 		envOutputs,
+		subset,
+		fingerprints: new Map(),
+		force: flags.force,
 	};
+
+	if (flags.dry !== false) {
+		// Preview pass on the current disk state (real decisions happen at
+		// task start, after dependencies have produced their outputs).
+		const decisions = new Map<string, CacheDecision>();
+		for (const task of planned) {
+			const decision = await decideCache(shared, task);
+			if (cacheable(task)) {
+				decisions.set(task.name, decision);
+			}
+		}
+		shared.fingerprints.clear();
+		return printDryRun(planned, requested, flags, decisions);
+	}
+
+	const hasServices = planned.some((task) => task.persistent);
+	const sequentialOk = !flags.isolate && !hasServices && isChain(project.tasks, order);
 	return sequentialOk ? await runSequential(shared) : await runParallel(shared, flags);
 }
 
@@ -94,6 +109,10 @@ interface SharedRunState {
 	rest: string[];
 	shellEnv: Record<string, string | undefined>;
 	envOutputs: ReadonlyMap<string, unknown>;
+	subset: ReadonlySet<string>;
+	/** Fingerprints recorded as tasks start (deps always precede dependents). */
+	fingerprints: Map<string, string>;
+	force: boolean;
 }
 
 function argsFor(state: SharedRunState, task: Task): Record<string, string | boolean | undefined> {
@@ -102,6 +121,26 @@ function argsFor(state: SharedRunState, task: Task): Record<string, string | boo
 
 function restFor(state: SharedRunState, task: Task): string[] {
 	return state.requestedNames.has(task.name) ? state.rest : [];
+}
+
+/**
+ * Compute this task's cache decision now — at start time, so input globs see
+ * whatever files its (already finished) dependencies produced.
+ */
+async function decideCache(state: SharedRunState, task: Task): Promise<CacheDecision> {
+	const decision = await checkCache(
+		state.project.rootDir,
+		task,
+		{
+			envOutput: task.env !== undefined ? state.envOutputs.get(task.name) : null,
+			args: argsFor(state, task),
+			rest: restFor(state, task),
+			depFingerprints: task.deps.filter((dep) => state.subset.has(dep)).map((dep) => state.fingerprints.get(dep) ?? ""),
+		},
+		state.force,
+	);
+	state.fingerprints.set(task.name, decision.fingerprint);
+	return decision;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,6 +164,11 @@ async function runSequential(state: SharedRunState): Promise<number> {
 			if (interrupted) {
 				throw new BundoError("interrupted", "Interrupted.");
 			}
+			const decision = await decideCache(state, task);
+			if (cacheable(task) && decision.hit) {
+				console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
+				continue;
+			}
 			const started = performance.now();
 			const ctx = buildCtx(task, {
 				env: state.envOutputs.get(task.name) ?? state.shellEnv,
@@ -134,6 +178,9 @@ async function runSequential(state: SharedRunState): Promise<number> {
 				signal: aborter.signal,
 			});
 			await runTaskInProcess(task, ctx);
+			if (cacheable(task)) {
+				await writeCache(state.project.rootDir, task, decision);
+			}
 			const ms = Math.round(performance.now() - started);
 			console.error(`${green("✓")} ${task.name} ${dim(`(${ms}ms)`)}`);
 		}
@@ -177,17 +224,48 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 			concurrency,
 			continueOnError: flags.continueOnError,
 			start: (task) => {
-				const started = startChildTask(task, {
-					configPath: state.project.configPath,
-					shellEnv: state.shellEnv,
-					envOutputs: state.envOutputs,
-					argsFor: (t) => argsFor(state, t),
-					restFor: (t) => restFor(state, t),
-					sinkFor: () => mux.sink(task.name),
-					lifecycle,
-				});
-				void started.result.then((result) => printStatus(task, result));
-				return started;
+				// The cache decision is async (hashing) but the scheduler expects a
+				// synchronous start — bridge with a promise of the started task.
+				const startedP = (async () => {
+					const decision = await decideCache(state, task);
+					if (cacheable(task) && decision.hit) {
+						const result: TaskResult = {
+							name: task.name,
+							status: "ok",
+							durationMs: 0,
+							cached: true,
+						};
+						console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
+						return {
+							unblocked: Promise.resolve(),
+							result: Promise.resolve(result),
+						};
+					}
+					const started = startChildTask(task, {
+						configPath: state.project.configPath,
+						shellEnv: state.shellEnv,
+						envOutputs: state.envOutputs,
+						argsFor: (t) => argsFor(state, t),
+						restFor: (t) => restFor(state, t),
+						sinkFor: () => mux.sink(task.name),
+						lifecycle,
+					});
+					const finalized = started.result.then(async (result) => {
+						if (result.status === "ok" && cacheable(task)) {
+							await writeCache(state.project.rootDir, task, decision);
+						}
+						printStatus(task, result);
+						return result;
+					});
+					return {
+						unblocked: started.unblocked,
+						result: finalized,
+					};
+				})();
+				return {
+					unblocked: startedP.then((s) => s.unblocked),
+					result: startedP.then((s) => s.result),
+				};
 			},
 			onAbort: () => lifecycle.shutdown(),
 		});
@@ -300,7 +378,12 @@ function applyDefaults(task: Task): Record<string, string | boolean | undefined>
 	return out;
 }
 
-function printDryRun(planned: Task[], requested: Task[], flags: GlobalFlags): number {
+function printDryRun(
+	planned: Task[],
+	requested: Task[],
+	flags: GlobalFlags,
+	decisions: ReadonlyMap<string, CacheDecision>,
+): number {
 	const requestedNames = new Set(requested.map((t) => t.name));
 	if (flags.dry === "json") {
 		console.log(
@@ -312,6 +395,7 @@ function printDryRun(planned: Task[], requested: Task[], flags: GlobalFlags): nu
 						deps: task.deps,
 						persistent: task.persistent,
 						hasRun: task.run !== undefined,
+						cached: decisions.get(task.name)?.hit === true,
 					})),
 				},
 				null,
@@ -322,7 +406,8 @@ function printDryRun(planned: Task[], requested: Task[], flags: GlobalFlags): nu
 		console.log(dim("plan (dependencies first):"));
 		for (const task of planned) {
 			const marker = requestedNames.has(task.name) ? "*" : " ";
-			console.log(`  ${marker} ${task.name}${task.persistent ? dim(" (service)") : ""}`);
+			const cachedNote = decisions.get(task.name)?.hit === true ? dim(" (cached — would skip)") : "";
+			console.log(`  ${marker} ${task.name}${task.persistent ? dim(" (service)") : ""}${cachedNote}`);
 		}
 		console.log(dim("* requested — nothing was run (--dry)"));
 	}
