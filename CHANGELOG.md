@@ -42,6 +42,19 @@ First release.
 - Bun workspace awareness (`pkg#task`, bare-name fan-out, `--filter`
   microsyntax) and git-aware `--affected[=rev]` selection.
 
+### Hardening (pre-release review)
+
+- A full-code review pass fixed 25+ confirmed defects before first publish,
+  including: an IPC race that could report a green task as failed; unenforceable
+  in-process timeouts (timeout plans now always use the child backend); cache
+  I/O failures crashing the scheduler (now degrade to uncached success); empty
+  `ctx.args` in multi-task runs; `--affected` silently doing nothing on failing
+  git commands, non-ASCII paths, and subdirectory repos; garbled zsh
+  completions; a constructible cache-fingerprint collision; watch-mode error
+  handling (watcher errors now fall back to polling, Ctrl-C aborts in-flight
+  re-runs); UTF-8-safe multiplexed output with per-fd grouped flushing; and
+  `--output-logs=errors-only` now working in stream order.
+
 ### Observability & automation
 
 - `--json` run report (per-task status, timing, cache result, critical path),

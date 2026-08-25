@@ -8,18 +8,17 @@
 
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
-import { applyDefaults } from "~/cli/run";
+import { resolveSingleTask } from "~/cli/resolve-task";
+import { applyDefaults, usesSequentialBackend } from "~/cli/run";
 import type { CacheDiagnosis, MissReason } from "~/core/cache";
 import { cacheable, diagnoseCache } from "~/core/cache";
 import { resolveEnv, validateTaskEnv } from "~/core/envresolve";
-import { BundoError, EXIT } from "~/core/errors";
+import { EXIT } from "~/core/errors";
 import { allPatternsMatchSomething, expand } from "~/core/globs";
 import { applyConditions, subgraphFor, topoOrder } from "~/core/graph";
 import { bold, dim, green, red, yellow } from "~/core/logger";
 import type { Project, Task } from "~/core/model";
 import { describeProbe } from "~/core/ready";
-import { isChain } from "~/core/scheduler";
-import { didYouMean } from "~/core/util";
 
 type Verdict = "would-run" | "would-skip" | "not-cacheable" | "service";
 
@@ -47,7 +46,7 @@ export async function explainCommand(taskName: string, flags: GlobalFlags): Prom
 		...loaded,
 		tasks: applyConditions(loaded.tasks, resolved.env),
 	};
-	const target = resolveOne(project, taskName);
+	const target = resolveSingleTask(project, taskName);
 
 	const subset = subgraphFor(project.tasks, [
 		target.name,
@@ -117,8 +116,7 @@ export async function explainCommand(taskName: string, flags: GlobalFlags): Prom
 		});
 	}
 
-	const hasServices = planned.some((task) => task.persistent);
-	const sequential = !flags.isolate && !hasServices && isChain(project.tasks, order);
+	const sequential = usesSequentialBackend(project.tasks, order, planned, flags);
 	const concurrency = flags.concurrency ?? Math.max(1, navigator.hardwareConcurrency ?? 4);
 
 	if (flags.json) {
@@ -339,35 +337,4 @@ function renderDetails(e: ExplainedTask, subset: ReadonlySet<string>): string[] 
 		lines.push(`          ${dim(`fingerprint ${d.fingerprint}`)}`);
 	}
 	return lines;
-}
-
-function resolveOne(project: Project, name: string): Task {
-	const exact = project.tasks.get(name);
-	if (exact !== undefined) {
-		return exact;
-	}
-	if (!name.includes("#")) {
-		const members = [
-			...project.tasks.values(),
-		].filter((t) => t.localName === name && t.name.includes("#"));
-		if (members.length === 1) {
-			return members[0] as Task;
-		}
-		if (members.length > 1) {
-			throw new BundoError(
-				"usage",
-				`"${name}" matches multiple workspace tasks (${members.map((t) => t.name).join(", ")}). Use the qualified name.`,
-			);
-		}
-	}
-	const hint = didYouMean(name, [
-		...project.tasks.keys(),
-	]);
-	throw new BundoError(
-		"unknown-task",
-		`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "bundo" to list tasks.`,
-		{
-			task: name,
-		},
-	);
 }

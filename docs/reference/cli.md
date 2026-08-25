@@ -32,7 +32,7 @@ Global flags go **before** the task name; everything after the task name belongs
 | `--profile[=<file>]` | path via `=` form | off | write a [Chrome trace](/guide/execution#timing-and-the-critical-path) of the run (default `.bundo/trace.json`) |
 | `-f, --force` | | off | ignore the fingerprint cache (still records fresh fingerprints) |
 | `-F, --filter <pattern>` | repeatable | | select workspace packages — see [Workspaces](/guide/workspaces#filtering-f-filter) |
-| `--isolate` | | off | force the child-process backend even for pure chains (hard kill on timeout, multiplexed output) |
+| `--isolate` | | off | force the child-process backend even for pure chains (multiplexed output, tree-kill semantics) |
 | `--json` | | off | machine-readable output — runs emit a [JSON report](/reference/exit-codes-and-json#run-report-json) on stdout, logs move to stderr |
 | `--color <mode>` | `auto` \| `always` \| `never` | `auto` | also `--no-color`; honors `NO_COLOR` / `FORCE_COLOR` |
 | `-h, --help` | | | global help; `bundo <task> --help` shows the task's flags |

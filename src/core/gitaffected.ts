@@ -46,6 +46,10 @@ async function git(args: string[], cwd: string): Promise<GitOutput> {
 		proc = Bun.spawn(
 			[
 				"git",
+				// Default core.quotepath C-quotes non-ASCII paths, which would make
+				// those files invisible to the change matching below.
+				"-c",
+				"core.quotepath=false",
 				...args,
 			],
 			{
@@ -168,14 +172,19 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 	}
 
 	const files = new Set<string>();
-	const collect = (out: GitOutput): void => {
+	// A failing git command must be a loud error, never an empty change set —
+	// silently "nothing affected" on a shallow CI clone would skip real work.
+	const collect = (out: GitOutput, what: string): void => {
+		if (!out.ok) {
+			throw new BundoError("git", `--affected: ${what} failed (${out.stderr || "no error output"}).`);
+		}
 		for (const line of out.stdout.split("\n")) {
 			if (line !== "") {
 				files.add(resolve(gitRoot, line).replaceAll("\\", "/"));
 			}
 		}
 	};
-	collect(await git(diffArgs, rootDir));
+	collect(await git(diffArgs, rootDir), `git ${diffArgs.join(" ")}`);
 	// Working tree (staged + unstaged) and untracked files also count.
 	collect(
 		await git(
@@ -186,6 +195,7 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 			],
 			rootDir,
 		),
+		"git diff --name-only HEAD",
 	);
 	collect(
 		await git(
@@ -193,9 +203,14 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 				"ls-files",
 				"--others",
 				"--exclude-standard",
+				// ls-files output is cwd-relative by default; --full-name makes it
+				// toplevel-relative like `diff --name-only`, so resolving against
+				// gitRoot is correct even when bundo runs in a subdirectory.
+				"--full-name",
 			],
 			rootDir,
 		),
+		"git ls-files --others",
 	);
 
 	return {

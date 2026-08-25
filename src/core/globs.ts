@@ -10,26 +10,43 @@ import { Glob } from "bun";
 export interface GlobSet {
 	positive: Glob[];
 	negative: Glob[];
+	/** Whether some positive pattern explicitly targets dotfiles (".env", ".github/**"). */
+	allowDot: boolean;
+}
+
+function hasDotSegment(path: string): boolean {
+	return path.split("/").some((segment) => segment.startsWith(".") && segment !== "." && segment !== "..");
 }
 
 export function compile(patterns: readonly string[]): GlobSet {
 	const positive: Glob[] = [];
 	const negative: Glob[] = [];
+	let allowDot = false;
 	for (const pattern of patterns) {
 		if (pattern.startsWith("!")) {
 			negative.push(new Glob(pattern.slice(1)));
 		} else {
 			positive.push(new Glob(pattern));
+			if (hasDotSegment(pattern)) {
+				allowDot = true;
+			}
 		}
 	}
 	return {
 		positive,
 		negative,
+		allowDot,
 	};
 }
 
 export function matches(set: GlobSet, path: string): boolean {
 	const normalized = path.replaceAll("\\", "/");
+	// Align with expand()'s `dot: false`: a dotfile change must not mark a task
+	// affected (watch / --affected) when its fingerprint would never see the
+	// file — unless a pattern explicitly names a dot segment.
+	if (!set.allowDot && hasDotSegment(normalized)) {
+		return false;
+	}
 	return set.positive.some((g) => g.match(normalized)) && !set.negative.some((g) => g.match(normalized));
 }
 

@@ -39,6 +39,7 @@
 	"scripts": {
 		"bundo": "bun src/cli.ts",
 		"test": "bun test --parallel",
+		"coverage": "bun test --coverage",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
 		"format": "biome check --write .",

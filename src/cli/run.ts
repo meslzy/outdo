@@ -74,9 +74,24 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		tasks: applyConditions(loaded.tasks, resolved.env),
 	};
 
-	let requested = resolveRequested(project, command.tasks);
+	const requestedAll = resolveRequested(project, command.tasks);
+
+	// Per-task flags only make sense for a single task — validated against
+	// what the user *asked for*, before --affected filtering: a dropped task
+	// must not silently reroute flags, and a --dry preview must not turn into
+	// a usage error just because git dropped the target.
+	if (command.taskArgv.length > 0 && requestedAll.length !== 1) {
+		throw new BundoError("usage", "Task flags require exactly one task on the command line.");
+	}
+	const target = requestedAll.length === 1 ? (requestedAll[0] as Task) : undefined;
+	if (target !== undefined && command.taskArgv.length > 0 && wantsTaskHelp(target, command.taskArgv)) {
+		console.log(renderTaskHelp(target));
+		return EXIT.ok;
+	}
+	const targetArgs = target !== undefined ? parseTaskArgs(target, command.taskArgv) : {};
 
 	// Git-aware selection: keep only tasks affected vs the base rev.
+	let requested = requestedAll;
 	let affectedInfo: AffectedInfo | undefined;
 	if (flags.affected !== false) {
 		const changed: ChangedResult = await detectChanged(project.rootDir, flags.affected.base);
@@ -92,17 +107,6 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		}
 		requested = kept;
 	}
-
-	// Per-task flags only make sense for a single task.
-	if (command.taskArgv.length > 0 && requested.length !== 1) {
-		throw new BundoError("usage", "Task flags require exactly one task on the command line.");
-	}
-	const target = requested[0] as Task;
-	if (command.taskArgv.length > 0 && wantsTaskHelp(target, command.taskArgv)) {
-		console.log(renderTaskHelp(target));
-		return EXIT.ok;
-	}
-	const targetArgs = requested.length === 1 ? parseTaskArgs(target, command.taskArgv) : {};
 
 	// Validate every schema in the plan before anything runs.
 	const subset = subgraphFor(
@@ -155,16 +159,37 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		const { runWatch } = await import("~/cli/watch-run");
 		return await runWatch(shared, flags);
 	}
+	return usesSequentialBackend(project.tasks, order, planned, flags)
+		? await runSequential(shared)
+		: await runParallel(shared, flags);
+}
+
+/**
+ * Backend choice, shared with `bundo explain` so its prediction can never
+ * drift from the real run. Timeouts need the child backend to be enforceable
+ * (in-process abort is cooperative only — a run body that ignores ctx.signal
+ * would hang the whole run forever); output-shaping flags need the
+ * multiplexer.
+ */
+export function usesSequentialBackend(
+	tasks: ReadonlyMap<string, Task>,
+	order: readonly string[],
+	planned: readonly Task[],
+	flags: GlobalFlags,
+): boolean {
 	const hasServices = planned.some((task) => task.persistent);
-	const sequentialOk = !flags.isolate && !flags.json && !hasServices && isChain(project.tasks, order);
-	return sequentialOk ? await runSequential(shared) : await runParallel(shared, flags);
+	const hasTimeouts = planned.some((task) => task.timeoutMs !== undefined);
+	const wantsMultiplexed =
+		flags.json || flags.profile !== false || flags.logOrder !== "auto" || flags.outputLogs !== "full";
+	return !flags.isolate && !wantsMultiplexed && !hasServices && !hasTimeouts && isChain(tasks, order);
 }
 
 export interface SharedRunState {
 	project: Project;
 	planned: Task[];
 	requestedNames: Set<string>;
-	target: Task;
+	/** The single requested task carrying parsed CLI flags (multi-task runs: none). */
+	target: Task | undefined;
 	targetArgs: Record<string, string | boolean | undefined>;
 	rest: string[];
 	shellEnv: Record<string, string | undefined>;
@@ -212,8 +237,22 @@ export function makeStart(
 	lifecycleFor: (task: Task) => Lifecycle,
 ): (task: Task) => StartedTask {
 	return (task) => {
-		const startedP = (async () => {
+		const startedP: Promise<StartedTask> = (async (): Promise<StartedTask> => {
 			const decision = await decideCache(state, task);
+			// A shutdown (Ctrl-C, fail-fast, watch supersede) that completed while
+			// we were hashing must not be followed by a fresh spawn the shutdown
+			// snapshot never saw.
+			if (lifecycleFor(task).shuttingDown) {
+				const result: TaskResult = {
+					name: task.name,
+					status: "aborted",
+					durationMs: 0,
+				};
+				return {
+					unblocked: Promise.resolve(),
+					result: Promise.resolve(result),
+				} satisfies StartedTask;
+			}
 			if (cacheable(task) && decision.hit) {
 				const now = performance.now();
 				state.outputs.set(task.name, decision.previousOutput);
@@ -305,7 +344,23 @@ export function makeStart(
 					await current?.stop?.();
 				},
 			} satisfies StartedTask;
-		})();
+		})().catch((error: unknown): StartedTask => {
+			// The scheduler's contract is that start() never rejects. Anything
+			// unexpected (cache I/O, spawn plumbing) becomes a failed result so
+			// the run degrades cleanly instead of crashing with orphaned children.
+			const message = error instanceof Error ? error.message : String(error);
+			const result: TaskResult = {
+				name: task.name,
+				status: "failed",
+				durationMs: 0,
+				error: message,
+			};
+			printStatus(task, result);
+			return {
+				unblocked: Promise.resolve(),
+				result: Promise.resolve(result),
+			} satisfies StartedTask;
+		});
 		return {
 			unblocked: startedP.then((s) => s.unblocked),
 			result: startedP.then((s) => s.result),
@@ -367,6 +422,9 @@ async function runSequential(state: SharedRunState): Promise<number> {
 				throw new BundoError("interrupted", "Interrupted.");
 			}
 			const decision = await decideCache(state, task);
+			if (interrupted) {
+				throw new BundoError("interrupted", "Interrupted.");
+			}
 			if (cacheable(task) && decision.hit) {
 				const now = performance.now();
 				state.outputs.set(task.name, decision.previousOutput);
@@ -382,12 +440,12 @@ async function runSequential(state: SharedRunState): Promise<number> {
 				continue;
 			}
 
+			// No timeout handling here: plans containing a timeoutMs task always
+			// use the child backend, where the budget is actually enforceable.
 			const max = task.retry?.attempts ?? 1;
 			let result: TaskResult | undefined;
 			for (let attempt = 1; ; attempt++) {
 				const startedAt = performance.now();
-				const timeoutCtl = new AbortController();
-				const timer = task.timeoutMs !== undefined ? setTimeout(() => timeoutCtl.abort(), task.timeoutMs) : undefined;
 				let error: string | undefined;
 				let output: unknown;
 				try {
@@ -396,29 +454,15 @@ async function runSequential(state: SharedRunState): Promise<number> {
 						shellEnv: state.shellEnv,
 						args: argsFor(state, task),
 						rest: restFor(state, task),
-						signal: AbortSignal.any([
-							aborter.signal,
-							timeoutCtl.signal,
-						]),
+						signal: aborter.signal,
 						depsData: depsDataFor(state, task),
 					});
 					output = await runTaskInProcess(task, ctx);
-					if (timeoutCtl.signal.aborted) {
-						error = `Task "${task.name}" timed out after ${task.timeoutMs}ms`;
-					}
 				} catch (err) {
 					if (interrupted) {
 						throw err;
 					}
-					error = timeoutCtl.signal.aborted
-						? `Task "${task.name}" timed out after ${task.timeoutMs}ms`
-						: err instanceof Error
-							? err.message
-							: String(err);
-				} finally {
-					if (timer !== undefined) {
-						clearTimeout(timer);
-					}
+					error = err instanceof Error ? err.message : String(err);
 				}
 				const endedAt = performance.now();
 				const durationMs = Math.round(endedAt - startedAt);

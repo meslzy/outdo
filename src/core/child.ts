@@ -92,29 +92,52 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 				}, task.timeoutMs)
 			: undefined;
 
-	proc.send({
-		type: "run",
-		configPath: task.sourceConfig,
-		taskName: task.localName,
-		env: opts.envOutputs.get(task.name) ?? opts.shellEnv,
-		shellEnv: opts.shellEnv,
-		args: opts.argsFor(task),
-		rest: opts.restFor(task),
-		depsData: opts.depsFor(task),
-	});
+	// `send` throws synchronously when the payload isn't structured-cloneable
+	// (e.g. an env schema whose output carries a function). Fail the task
+	// cleanly instead of rejecting start() and crashing the scheduler.
+	let sendError: string | undefined;
+	try {
+		proc.send({
+			type: "run",
+			configPath: task.sourceConfig,
+			taskName: task.localName,
+			fullName: task.name,
+			env: opts.envOutputs.get(task.name) ?? opts.shellEnv,
+			shellEnv: opts.shellEnv,
+			args: opts.argsFor(task),
+			rest: opts.restFor(task),
+			depsData: opts.depsFor(task),
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		sendError = `Task "${task.name}" could not start: IPC payload is not serializable (${message}). Env schema outputs and task data outputs must be plain data.`;
+		// The worker never got a run message — it would idle forever otherwise.
+		void opts.lifecycle.stop(proc, 250);
+	}
 
 	const streams = Promise.all([
 		OutputMultiplexer.pipe(proc.stdout as ReadableStream<Uint8Array>, sink.stdout),
 		OutputMultiplexer.pipe(proc.stderr as ReadableStream<Uint8Array>, sink.stderr),
 	]);
+	// Pre-attach a handler: a mid-run pipe rejection must never become an
+	// unhandled rejection (Bun treats those as fatal). The result path below
+	// still awaits and swallows the same promise.
+	streams.catch(() => {});
 
 	const result: Promise<TaskResult> = (async () => {
-		const [exitCode, message] = await Promise.all([
-			proc.exited,
-			Promise.race([
-				resultMsg,
-				proc.exited.then(() => undefined),
-			]),
+		const exitCode = await proc.exited;
+		// The result message can still be in flight when exit is observed —
+		// give the IPC channel a short, clearable grace before declaring it lost
+		// (a green task must not be reported failed because it exited quickly).
+		const message = await Promise.race([
+			resultMsg,
+			new Promise<ResultMessage | undefined>((resolve) => {
+				const grace = setTimeout(() => resolve(undefined), 250);
+				void resultMsg.then((msg) => {
+					clearTimeout(grace);
+					resolve(msg);
+				});
+			}),
 		]);
 		if (timeoutTimer !== undefined) {
 			clearTimeout(timeoutTimer);
@@ -122,7 +145,8 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 		// Cancel probe timers if the service exited on its own mid-probe.
 		probeAbort.abort();
 		await streams.catch(() => {});
-		const ok = message?.ok === true && exitCode === 0 && !timedOut && probeError === undefined;
+		const ok =
+			message?.ok === true && exitCode === 0 && !timedOut && probeError === undefined && sendError === undefined;
 		const aborted = opts.lifecycle.shuttingDown && !ok && !timedOut;
 		sink.finish(ok);
 		const endedAt = performance.now();
@@ -142,7 +166,7 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 				: {
 						error: timedOut
 							? `Task "${task.name}" timed out after ${task.timeoutMs}ms`
-							: (probeError ?? message?.error ?? `exited with code ${exitCode}`),
+							: (sendError ?? probeError ?? message?.error ?? `exited with code ${exitCode}`),
 					}),
 		};
 	})();

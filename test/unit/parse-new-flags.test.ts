@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseCli } from "~/cli/parse";
+import { parseCli, wantsJsonErrors } from "~/cli/parse";
 
 describe("--affected parsing", () => {
 	test("bare --affected: auto base, does not swallow the task name", () => {
@@ -60,6 +60,81 @@ describe("--profile parsing", () => {
 			"build",
 		]);
 		expect(flags.profile).toBe(false);
+	});
+});
+
+describe("task argv stays raw", () => {
+	test("normalizeToken applies only to the global zone", () => {
+		const { command } = parseCli([
+			"--no-color",
+			"greet",
+			"--no-color",
+			"--dry=json",
+			"--affected",
+		]);
+		expect(command).toEqual({
+			kind: "run",
+			tasks: [
+				"greet",
+			],
+			taskArgv: [
+				"--no-color",
+				"--dry=json",
+				"--affected",
+			],
+			rest: [],
+		});
+	});
+});
+
+describe("wantsJsonErrors", () => {
+	test("global --json counts", () => {
+		expect(
+			wantsJsonErrors([
+				"--json",
+				"build",
+			]),
+		).toBe(true);
+		expect(
+			wantsJsonErrors([
+				"--filter",
+				"api",
+				"--json",
+				"build",
+			]),
+		).toBe(true);
+	});
+
+	test("subcommands accept --json after the name", () => {
+		expect(
+			wantsJsonErrors([
+				"ls",
+				"--json",
+			]),
+		).toBe(true);
+		expect(
+			wantsJsonErrors([
+				"explain",
+				"build",
+				"--json",
+			]),
+		).toBe(true);
+	});
+
+	test("task-owned and passthrough --json do not count", () => {
+		expect(
+			wantsJsonErrors([
+				"build",
+				"--json",
+			]),
+		).toBe(false);
+		expect(
+			wantsJsonErrors([
+				"build",
+				"--",
+				"--json",
+			]),
+		).toBe(false);
 	});
 });
 

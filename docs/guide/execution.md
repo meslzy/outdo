@@ -14,7 +14,7 @@ bundo -j 2 check     # cap at 2 concurrent tasks
 bundo -j 1 check     # fully serialized
 ```
 
-Default concurrency is your CPU count. Pure dependency *chains* skip child processes entirely and run in-process with fully inherited stdio — colors, progress bars, and interactive prompts just work.
+Default concurrency is your CPU count. Pure dependency *chains* skip child processes entirely and run in-process with fully inherited stdio — colors, progress bars, and interactive prompts just work. A chain still uses child processes when the run needs them: services, `timeoutMs` tasks (the budget must be enforceable), or output-shaping flags (`--json`, `--profile`, explicit `--log-order`/`--output-logs`, `--isolate`).
 
 ## Multiplexed output
 
@@ -42,7 +42,7 @@ lint      | ✓ clean
 
 :::
 
-`stream` interleaves lines live; `grouped` buffers each task and flushes it as one contiguous block on completion. `--output-logs=errors-only|none` trims further.
+`stream` interleaves lines live; `grouped` buffers each task and flushes it as one contiguous block on completion. `--output-logs=errors-only` buffers every task and prints output only for the ones that fail (whether a task's output matters isn't known until it settles); `--output-logs=none` suppresses task output entirely.
 
 ## Failure semantics
 
@@ -86,7 +86,7 @@ e2e: {
 },
 ```
 
-When the budget is exceeded, the task gets the standard cooperative abort (`ctx.signal` fires → 5s grace → tree kill) and fails with `timed out after 120000ms`. The budget is **per attempt**, so it composes with `retry`. In-process chains abort cooperatively via `ctx.signal` — a run body that ignores the signal can outlive its budget there; use `--isolate` if you need the hard kill.
+When the budget is exceeded, the task gets the standard cooperative abort (`ctx.signal` fires → 5s grace → tree kill) and fails with `timed out after 120000ms`. The budget is **per attempt**, so it composes with `retry`. Plans containing a `timeoutMs` task always use the child-process backend, so the kill is real even for a run body that ignores the signal — a timeout that can't be enforced would just be a hang.
 
 ## The run report (`--json`)
 

@@ -26,7 +26,6 @@ function makeTask(name: string, deps: string[] = [], persistent = false): Task {
 		timeoutMs: undefined,
 		cwd: process.cwd(),
 		run: () => {},
-		built: false,
 		sourceConfig: "do.ts",
 		localName: name,
 	};

@@ -21,7 +21,6 @@ function makeTask(name: string, depEdges: DepEdge[]): Task {
 		timeoutMs: undefined,
 		cwd: process.cwd(),
 		run: undefined,
-		built: false,
 		sourceConfig: "do.ts",
 		localName: name,
 	};

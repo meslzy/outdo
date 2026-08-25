@@ -48,13 +48,23 @@ function readPkg(path: string): PackageJson | undefined {
 	}
 }
 
+/**
+ * Extract valid workspace glob patterns from a parsed package.json. The single
+ * source of truth for "is this a workspace root" — findConfig's upward walk
+ * must agree with findWorkspaceRoot, or bundo reports "no do.ts" when the real
+ * one sits above a package.json with a malformed `workspaces` key.
+ */
+export function workspacePatternsOf(pkg: unknown): string[] | undefined {
+	const raw = (pkg as PackageJson | null | undefined)?.workspaces;
+	const patterns = Array.isArray(raw) ? raw : raw?.packages;
+	return Array.isArray(patterns) && patterns.every((p) => typeof p === "string") ? patterns : undefined;
+}
+
 /** Nearest ancestor (including startDir) whose package.json declares workspaces. */
 export function findWorkspaceRoot(startDir: string): WorkspaceRoot | undefined {
 	let dir = resolve(startDir);
 	for (;;) {
-		const pkg = readPkg(join(dir, "package.json"));
-		const raw = pkg?.workspaces;
-		const patterns = Array.isArray(raw) ? raw : raw?.packages;
+		const patterns = workspacePatternsOf(readPkg(join(dir, "package.json")));
 		if (patterns !== undefined) {
 			return {
 				rootDir: dir,

@@ -1,0 +1,41 @@
+[test]
+# Coverage counts only code loaded in-process by the test runner. The
+# integration suite deliberately spawns the real CLI as child processes
+# (test/integration/helpers.ts), which bun cannot instrument — so the
+# process-orchestration glue below is excluded from the metric and owned by
+# the integration tests instead. Pure core modules are the unit-coverage
+# targets.
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+# NOTE: bun enforces this threshold PER FILE (undocumented), not on the
+# total — every non-excluded file must clear it. Ratchet by REMOVING entries
+# from the "pending unit tests" block below, never by lowering the floor.
+# Run coverage SERIALLY (`bun run coverage`, no --parallel): shard merging
+# under --parallel is nondeterministic and reports flaky per-file numbers.
+coverageThreshold = { lines = 0.8, functions = 0.8 }
+coveragePathIgnorePatterns = [
+  # test scaffolding
+  "test/**",
+  # bin entry + command glue: end-to-end covered by spawned-CLI integration
+  # tests (cli.test.ts, run.test.ts, watch.test.ts, ...), invisible to bun's
+  # in-process coverage. src/cli/parse.ts stays IN — it's unit-tested.
+  "src/cli.ts",
+  "src/cli/complete.ts",
+  "src/cli/completion.ts",
+  "src/cli/explain.ts",
+  "src/cli/graph.ts",
+  "src/cli/init.ts",
+  "src/cli/list.ts",
+  "src/cli/load.ts",
+  "src/cli/print-env.ts",
+  "src/cli/run.ts",
+  "src/cli/watch-run.ts",
+  "src/cli/worker.ts",
+  # process orchestration: only meaningful with real child processes
+  "src/core/child.ts",
+  "src/core/lifecycle.ts",
+  "src/core/watch.ts",
+  # repo tooling
+  "scripts/**",
+  "do.ts",
+]

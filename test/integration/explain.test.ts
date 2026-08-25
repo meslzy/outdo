@@ -94,9 +94,19 @@ describe("bundo explain", () => {
 		]);
 	});
 
-	test("backend detection: chain is sequential, diamond is parallel", async () => {
-		const chain = await explainJson(dir, "bundle");
-		expect(chain.backend.kind).toBe("sequential");
+	test("backend detection matches the real run for the same flags", async () => {
+		// Human explain of a chain: a plain `bundo bundle` runs in-process.
+		const human = await runCli(dir, [
+			"explain",
+			"bundle",
+		]);
+		expect(human.stdout).toContain("sequential (in-process)");
+
+		// With --json the prediction reflects that `bundo --json bundle` itself
+		// uses the child backend (the report needs a clean stdout) — the
+		// prediction must never diverge from a run with identical flags.
+		const chainJson = await explainJson(dir, "bundle");
+		expect(chainJson.backend.kind).toBe("parallel");
 
 		const diamondDir = copyFixture("diamond");
 		const diamond = await explainJson(diamondDir, "d");

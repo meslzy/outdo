@@ -23,7 +23,7 @@ _bundo() {
 	pairs=("\${(@f)$(bundo __complete -- "\${words[@]:1:CURRENT-1}" "\${words[CURRENT]}" 2>/dev/null)}")
 	local -a completions
 	for pair in "\${pairs[@]}"; do
-		completions+=("\${pair/\\t/:}")
+		completions+=("\${pair/$'\\t'/:}")
 	done
 	(( \${#completions} )) && _describe 'bundo' completions
 }

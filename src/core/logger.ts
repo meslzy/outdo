@@ -44,14 +44,12 @@ function style(open: number, close: number): (text: string) => string {
 
 export const bold = style(1, 22);
 export const dim = style(2, 22);
-export const italic = style(3, 23);
 export const red = style(31, 39);
 export const green = style(32, 39);
 export const yellow = style(33, 39);
 export const blue = style(34, 39);
 export const magenta = style(35, 39);
 export const cyan = style(36, 39);
-export const gray = style(90, 39);
 
 /** Stable per-name prefix colors for multiplexed output. */
 const PREFIX_STYLES = [

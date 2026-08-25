@@ -27,7 +27,6 @@ function makeTasks(defs: Record<string, string[]>): Map<string, Task> {
 			timeoutMs: undefined,
 			cwd: process.cwd(),
 			run: undefined,
-			built: false,
 			sourceConfig: "do.ts",
 			localName: name,
 		});

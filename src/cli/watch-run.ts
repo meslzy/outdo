@@ -50,7 +50,9 @@ export async function runWatch(state: SharedRunState, flags: GlobalFlags): Promi
 		});
 		for (const root of staticRoots(globs)) {
 			const absRoot = root === "." ? task.cwd : `${task.cwd}/${root}`;
-			const existing = targets.find((t) => t.root === absRoot);
+			// Merge only same-base targets: patterns are cwd-relative, so folding
+			// them into a target with a different base breaks the poll backend.
+			const existing = targets.find((t) => t.root === absRoot && t.base === task.cwd);
 			if (existing) {
 				existing.patterns = [
 					...new Set([
@@ -172,6 +174,9 @@ export async function runWatch(state: SharedRunState, flags: GlobalFlags): Promi
 		}
 		interrupted = true;
 		console.error(dim("stopping watch..."));
+		// Abort an in-flight re-run too — without this, first Ctrl-C during a
+		// long task appears to do nothing until the run finishes on its own.
+		void currentLifecycle?.shutdown();
 		wake?.();
 	};
 	process.on("SIGINT", onSigint);

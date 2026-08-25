@@ -2,23 +2,14 @@
 
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
+import { resolveSingleTask } from "~/cli/resolve-task";
 import { resolveEnv, validateTaskEnv } from "~/core/envresolve";
-import { BundoError, EXIT } from "~/core/errors";
+import { EXIT } from "~/core/errors";
 import { bold, cyan, dim, green, red } from "~/core/logger";
-import { didYouMean } from "~/core/util";
 
 export async function printEnvCommand(taskName: string, flags: GlobalFlags): Promise<number> {
 	const project = await loadProjectFromCwd(flags.filter);
-	const task = project.tasks.get(taskName);
-	if (task === undefined) {
-		const hint = didYouMean(taskName, [
-			...project.tasks.keys(),
-		]);
-		throw new BundoError(
-			"unknown-task",
-			`Unknown task "${taskName}".${hint === undefined ? "" : ` Did you mean "${hint}"?`}`,
-		);
-	}
+	const task = resolveSingleTask(project, taskName);
 
 	const resolved = resolveEnv(project.rootDir);
 	const validation = await validateTaskEnv(task, resolved.env);

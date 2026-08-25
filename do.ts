@@ -24,6 +24,13 @@ export default defineTasks({
 			await $`bun run test`;
 		},
 	},
+	coverage: {
+		group: "Verify",
+		desc: "Test suite with coverage report (text + lcov in coverage/)",
+		run: async ({ $ }) => {
+			await $`bun run coverage`;
+		},
+	},
 	check: {
 		group: "Verify",
 		desc: "Everything that must pass before a commit",

@@ -4,7 +4,7 @@
  * beyond parsing and error handling is loaded lazily per command.
  */
 
-import { parseCli } from "~/cli/parse";
+import { parseCli, wantsJsonErrors } from "~/cli/parse";
 import { BundoError, EXIT } from "~/core/errors";
 import { red, setColorMode } from "~/core/logger";
 
@@ -104,7 +104,7 @@ try {
 	process.exitCode = await main();
 } catch (error) {
 	if (error instanceof BundoError) {
-		const wantJson = process.argv.includes("--json");
+		const wantJson = wantsJsonErrors(process.argv.slice(2));
 		if (wantJson) {
 			console.error(
 				JSON.stringify({

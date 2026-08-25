@@ -5,6 +5,7 @@
  */
 
 import { loadProjectFromCwd } from "~/cli/load";
+import { findTaskMatches } from "~/cli/resolve-task";
 
 const GLOBAL_FLAGS: [
 	string,
@@ -142,9 +143,11 @@ export async function completeCommand(words: string[]): Promise<number> {
 			}
 			if (firstPositional !== undefined) {
 				const project = await loadProjectFromCwd().catch(() => undefined);
-				const task = project?.tasks.get(firstPositional);
-				if (task !== undefined) {
-					for (const [flag, spec] of Object.entries(task.args)) {
+				// Bare workspace names count too (`api-only` -> `api#api-only`);
+				// flags are offered only when the name is unambiguous.
+				const matches = project === undefined ? [] : findTaskMatches(project, firstPositional);
+				if (matches.length === 1) {
+					for (const [flag, spec] of Object.entries((matches[0] as (typeof matches)[number]).args)) {
 						emit(`--${flag}`, spec.description ?? spec.type);
 					}
 				}

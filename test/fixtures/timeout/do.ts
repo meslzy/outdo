@@ -22,4 +22,13 @@ export default defineTasks({
 			console.log("QUICK DONE");
 		},
 	},
+	stubborn: {
+		desc: "Ignores the abort signal entirely — must still be killed",
+		timeoutMs: 300,
+		run: async () => {
+			console.log("STUBBORN START");
+			await Bun.sleep(60_000);
+			console.log("STUBBORN FINISHED");
+		},
+	},
 });

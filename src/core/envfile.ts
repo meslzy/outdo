@@ -8,7 +8,6 @@
 
 export interface EnvFileEntry {
 	value: string;
-	line: number;
 }
 
 const LINE_RE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
@@ -40,7 +39,6 @@ export function parseEnvFile(text: string): Map<string, EnvFileEntry> {
 				raw = raw.slice(1, raw.lastIndexOf(quote));
 				entries.set(key, {
 					value: quote === '"' ? unescapeDouble(raw) : raw,
-					line: i + 1,
 				});
 				continue;
 			}
@@ -52,7 +50,6 @@ export function parseEnvFile(text: string): Map<string, EnvFileEntry> {
 		}
 		entries.set(key, {
 			value: raw,
-			line: i + 1,
 		});
 	}
 	return entries;

@@ -214,9 +214,12 @@ function oneOf<T extends string>(value: string | undefined, allowed: readonly T[
 
 export function parseCli(argv: readonly string[]): ParsedCli {
 	// 1. Split off everything after `--` (raw passthrough for the task).
+	// Tokens are kept RAW here: normalizeToken applies only to the global zone
+	// below — a task's own declared flags (a task-owned --no-color, --dry=json,
+	// --affected, ...) must reach parseTaskArgs untouched.
 	const terminatorIdx = argv.indexOf("--");
 	const rest = terminatorIdx === -1 ? [] : argv.slice(terminatorIdx + 1).map(String);
-	const head = (terminatorIdx === -1 ? argv : argv.slice(0, terminatorIdx)).map(normalizeToken);
+	const head = (terminatorIdx === -1 ? argv : argv.slice(0, terminatorIdx)).map(String);
 
 	// `__worker` is the hidden child-process entry — IPC-driven, no flags.
 	if (head[0] === "__worker") {
@@ -260,7 +263,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		firstPos = i;
 		break;
 	}
-	const globalArgv = head.slice(0, firstPos);
+	const globalArgv = head.slice(0, firstPos).map(normalizeToken);
 	const tail = head.slice(firstPos);
 	const first = tail[0];
 
@@ -275,7 +278,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 	const parseInput = isSub
 		? [
 				...globalArgv,
-				...tail.slice(1),
+				...tail.slice(1).map(normalizeToken),
 			]
 		: globalArgv;
 
@@ -417,6 +420,39 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		command,
 		flags,
 	};
+}
+
+/**
+ * Whether error output should be the machine JSON envelope: --json counts
+ * only in the global zone (before `--`, and before a task name — tokens after
+ * a task name belong to the task; subcommands still accept globals anywhere).
+ * Used by the top-level error handler, which may run before/without parseCli.
+ */
+export function wantsJsonErrors(argv: readonly string[]): boolean {
+	let inSubcommand = false;
+	for (let i = 0; i < argv.length; i++) {
+		const token = argv[i] as string;
+		if (token === "--") {
+			return false;
+		}
+		if (token === "--json") {
+			return true;
+		}
+		if (token.startsWith("-") && token !== "-") {
+			if (!token.includes("=") && VALUE_FLAGS.has(token)) {
+				i++; // skip this flag's value
+			}
+			continue;
+		}
+		if (SUBCOMMANDS.has(token)) {
+			inSubcommand = true;
+			continue;
+		}
+		if (!inSubcommand) {
+			return false; // task name — everything after belongs to the task
+		}
+	}
+	return false;
 }
 
 function parseConcurrency(value: string | undefined): number | undefined {

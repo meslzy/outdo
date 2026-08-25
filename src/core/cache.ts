@@ -16,7 +16,7 @@ import { allPatternsMatchSomething, expand } from "~/core/globs";
 import { debugLog } from "~/core/logger";
 import type { Task } from "~/core/model";
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 interface FileEntry {
 	m: number; // mtimeMs
@@ -157,14 +157,20 @@ async function computeFingerprint(
 			continue; // deleted between scan and stat
 		}
 		const prior = previous?.files[relPath];
-		const entry: FileEntry =
-			prior !== undefined && prior.m === stat.mtimeMs && prior.s === stat.size
-				? prior
-				: {
-						m: stat.mtimeMs,
-						s: stat.size,
-						h: await hashFile(absPath),
-					};
+		let entry: FileEntry;
+		if (prior !== undefined && prior.m === stat.mtimeMs && prior.s === stat.size) {
+			entry = prior;
+		} else {
+			try {
+				entry = {
+					m: stat.mtimeMs,
+					s: stat.size,
+					h: await hashFile(absPath),
+				};
+			} catch {
+				continue; // deleted/locked between stat and read — treat like the stat race
+			}
+		}
 		files[relPath] = entry;
 		digests.push(`${relPath} ${entry.h}`);
 	}
@@ -185,17 +191,15 @@ async function computeFingerprint(
 		deps: hashText(inputs.depFingerprints.join("\n")),
 		depOutputs: hashText(inputs.depOutputs.join("\n")),
 	};
+	// JSON-encode the pre-image: every part is unambiguously delimited, so no
+	// crafted filename or hash prefix can collide two different states into
+	// the same fingerprint (join("") had constructible collisions).
 	const fingerprint = hashText(
-		[
-			String(CACHE_VERSION),
-			components.def,
-			components.env,
-			components.args,
-			components.rest,
-			components.deps,
-			components.depOutputs,
-			...digests,
-		].join(""),
+		JSON.stringify([
+			CACHE_VERSION,
+			components,
+			digests,
+		]),
 	);
 	return {
 		fingerprint,
@@ -322,25 +326,35 @@ export async function diagnoseCache(
 	};
 }
 
+/**
+ * Persist the manifest after a successful run. Never throws: an unwritable
+ * .bundo (read-only checkout, full disk) must not turn a green task into a
+ * failure — the task simply stays uncached.
+ */
 export async function writeCache(
 	rootDir: string,
 	task: Task,
 	decision: CacheDecision,
 	output?: unknown,
 ): Promise<void> {
-	mkdirSync(cacheDir(rootDir), {
-		recursive: true,
-	});
-	const manifest: Manifest = {
-		version: CACHE_VERSION,
-		fingerprint: decision.fingerprint,
-		components: decision.components,
-		files: decision.files,
-		...(output === undefined
-			? {}
-			: {
-					output,
-				}),
-	};
-	await Bun.write(manifestPath(rootDir, task.name), JSON.stringify(manifest));
+	try {
+		mkdirSync(cacheDir(rootDir), {
+			recursive: true,
+		});
+		const manifest: Manifest = {
+			version: CACHE_VERSION,
+			fingerprint: decision.fingerprint,
+			components: decision.components,
+			files: decision.files,
+			...(output === undefined
+				? {}
+				: {
+						output,
+					}),
+		};
+		await Bun.write(manifestPath(rootDir, task.name), JSON.stringify(manifest));
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`warning: could not write cache for ${task.name} (${message}) — result not cached`);
+	}
 }

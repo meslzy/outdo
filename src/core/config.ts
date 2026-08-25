@@ -6,8 +6,12 @@ import { pathToFileURL } from "node:url";
 import { BundoError } from "~/core/errors";
 import type { DepEdge, Project, Task } from "~/core/model";
 import { didYouMean } from "~/core/util";
+import { workspacePatternsOf } from "~/core/workspaces";
 import { isTasks } from "~/index";
 import type { ArgSpec, ReadyProbe, RetrySpec, StandardSchemaV1, TaskCtx } from "~/types";
+
+/** setTimeout clamps larger values to ~1ms — a "30 day" timeout firing instantly. */
+const MAX_TIMER_MS = 2_147_483_647;
 
 export const CONFIG_FILENAME = "do.ts";
 
@@ -26,7 +30,10 @@ export function findConfig(startDir: string): string | undefined {
 		if (existsSync(pkgPath)) {
 			try {
 				const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as Record<string, unknown>;
-				if (pkg && typeof pkg === "object" && "workspaces" in pkg) {
+				// Must agree with findWorkspaceRoot — a malformed `workspaces` key
+				// (empty object, string, null) is not a workspace root and must not
+				// stop the walk before an ancestor do.ts.
+				if (workspacePatternsOf(pkg) !== undefined) {
 					return undefined; // workspace root without do.ts — stop here
 				}
 			} catch {
@@ -56,7 +63,6 @@ interface RawEntry {
 	ready?: unknown;
 	retry?: unknown;
 	timeoutMs?: unknown;
-	"~built"?: unknown;
 }
 
 function toStringArray(value: unknown, task: string, field: string): readonly string[] {
@@ -150,8 +156,14 @@ function toReady(value: unknown, task: string): ReadyProbe | undefined {
 	if (probe.host !== undefined && probe.port === undefined) {
 		throw new BundoError("config-invalid", `Task "${task}": "ready.host" is only valid with "ready.port".`);
 	}
-	if (probe.timeoutMs !== undefined && (!Number.isFinite(probe.timeoutMs) || probe.timeoutMs <= 0)) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready.timeoutMs" must be a positive number.`);
+	if (
+		probe.timeoutMs !== undefined
+		&& (!Number.isFinite(probe.timeoutMs) || probe.timeoutMs <= 0 || probe.timeoutMs > MAX_TIMER_MS)
+	) {
+		throw new BundoError(
+			"config-invalid",
+			`Task "${task}": "ready.timeoutMs" must be a positive number of ms (at most ${MAX_TIMER_MS}).`,
+		);
 	}
 	return probe;
 }
@@ -177,8 +189,14 @@ function toRetry(value: unknown, task: string): Required<RetrySpec> | undefined 
 	if (!Number.isInteger(spec.attempts) || spec.attempts < 1) {
 		throw new BundoError("config-invalid", `Task "${task}": "retry.attempts" must be an integer >= 1.`);
 	}
-	if (spec.delayMs !== undefined && (!Number.isFinite(spec.delayMs) || spec.delayMs < 0)) {
-		throw new BundoError("config-invalid", `Task "${task}": "retry.delayMs" must be a non-negative number.`);
+	if (
+		spec.delayMs !== undefined
+		&& (!Number.isFinite(spec.delayMs) || spec.delayMs < 0 || spec.delayMs > MAX_TIMER_MS)
+	) {
+		throw new BundoError(
+			"config-invalid",
+			`Task "${task}": "retry.delayMs" must be a non-negative number of ms (at most ${MAX_TIMER_MS}).`,
+		);
 	}
 	if (spec.backoff !== undefined && spec.backoff !== "fixed" && spec.backoff !== "exponential") {
 		throw new BundoError("config-invalid", `Task "${task}": "retry.backoff" must be "fixed" or "exponential".`);
@@ -194,8 +212,11 @@ function toTimeout(value: unknown, task: string): number | undefined {
 	if (value === undefined) {
 		return undefined;
 	}
-	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-		throw new BundoError("config-invalid", `Task "${task}": "timeoutMs" must be a positive number.`);
+	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > MAX_TIMER_MS) {
+		throw new BundoError(
+			"config-invalid",
+			`Task "${task}": "timeoutMs" must be a positive number of ms (at most ${MAX_TIMER_MS}).`,
+		);
 	}
 	return value;
 }
@@ -247,7 +268,6 @@ export async function loadProject(configPath: string): Promise<Project> {
 				typeof entry.run === "function"
 					? (entry.run as (ctx: TaskCtx<unknown, unknown, Readonly<Record<string, unknown>>>) => unknown)
 					: undefined,
-			built: entry["~built"] === true,
 			sourceConfig: absPath,
 			localName: name,
 		});

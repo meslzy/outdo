@@ -38,8 +38,6 @@ export interface Task {
 	/** Absolute working directory (resolved against the do.ts directory). */
 	cwd: string;
 	run: ((ctx: TaskCtx<unknown, unknown, Readonly<Record<string, unknown>>>) => unknown) | undefined;
-	/** Whether the entry came from the task() builder. */
-	built: boolean;
 	/** The do.ts file this task was defined in. */
 	sourceConfig: string;
 	/** Name within its own do.ts (differs from name for workspace tasks). */
