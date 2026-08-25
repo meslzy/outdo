@@ -1,0 +1,37 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": [
+			"ESNext"
+		],
+		"types": [
+			"bun"
+		],
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noFallthroughCasesInSwitch": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"forceConsistentCasingInFileNames": true,
+		"paths": {
+			"~/*": [
+				"./src/*"
+			]
+		}
+	},
+	"include": [
+		"src",
+		"test",
+		"do.ts",
+		"scripts"
+	],
+	"exclude": [
+		"test/fixtures/**/node_modules",
+		"dist"
+	]
+}
