@@ -107,7 +107,18 @@ const SHELLS = [
 
 export async function completeCommand(words: string[]): Promise<number> {
 	try {
-		const args = words[0] === "--" ? words.slice(1) : words;
+		// `--empty` (before `--`) means the cursor sits on a fresh word — sent by
+		// shells that can't pass a literal "" to native commands (PowerShell).
+		let raw = words;
+		let cursorOnFreshWord = false;
+		if (raw[0] === "--empty") {
+			cursorOnFreshWord = true;
+			raw = raw.slice(1);
+		}
+		const args = raw[0] === "--" ? raw.slice(1) : raw;
+		if (cursorOnFreshWord) {
+			args.push("");
+		}
 		// The last word is the partial being completed (may be "").
 		const current = args.at(-1) ?? "";
 		const prior = args.slice(0, -1).filter((w) => w !== "");

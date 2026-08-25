@@ -37,6 +37,7 @@
 		"cli"
 	],
 	"scripts": {
+		"bundo": "bun src/cli.ts",
 		"test": "bun test --parallel",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",

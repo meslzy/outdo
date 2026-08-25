@@ -40,8 +40,10 @@ const POWERSHELL = `# bundo PowerShell completion — add to $PROFILE:
 Register-ArgumentCompleter -Native -CommandName bundo -ScriptBlock {
 	param($wordToComplete, $commandAst, $cursorPosition)
 	$words = $commandAst.CommandElements | Select-Object -Skip 1 | ForEach-Object { $_.ToString() }
-	if ($wordToComplete -eq "") { $words = @($words) + @("") }
-	bundo __complete -- @($words) 2>$null | ForEach-Object {
+	# Windows PowerShell drops empty-string args to native commands, so signal
+	# "cursor is on a fresh word" with a flag instead of a trailing "".
+	$empty = if ($wordToComplete -eq "") { "--empty" } else { $null }
+	bundo __complete $empty -- @($words) 2>$null | ForEach-Object {
 		$parts = $_ -split "\`t", 2
 		[System.Management.Automation.CompletionResult]::new($parts[0], $parts[0], 'ParameterValue', $(if ($parts.Length -gt 1 -and $parts[1]) { $parts[1] } else { $parts[0] }))
 	}
