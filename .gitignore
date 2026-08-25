@@ -4,3 +4,5 @@ dist/
 *.tsbuildinfo
 .env.local
 .env.*.local
+!test/fixtures/**/.env.local
+!test/fixtures/**/.env.*.local
