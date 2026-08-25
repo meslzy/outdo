@@ -93,3 +93,63 @@
 .dark .vp-doc div[class*="language-"] {
 	border-color: #262220;
 }
+
+/* --- Hero terminal layout ------------------------------------------------ */
+/*
+ * VPHero assumes the home-hero-image slot holds a square logo: it wraps it in
+ * a fixed 320x320 (392x392 at >=640px) .image-container and pulls the whole
+ * .image block up with negative margins on small screens. A ~460px-wide
+ * terminal breaks both assumptions, so when the slot contains .bundo-terminal
+ * we restore normal flow and give it real width.
+ */
+
+.VPHero .image:has(.bundo-terminal) {
+	margin: 0;
+}
+
+.VPHero .image-container:has(.bundo-terminal) {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	max-width: 480px;
+	height: auto;
+	padding: 12px 0;
+}
+
+/* Below the desktop breakpoint the hero stacks: put the text first and the
+ * terminal after it (VPHero defaults to image-first for logos). */
+@media (max-width: 959px) {
+	.VPHero .image:has(.bundo-terminal) {
+		order: 3;
+		margin: 28px 0 0;
+	}
+
+	.VPHero .image-container:has(.bundo-terminal) {
+		max-width: min(460px, 100%);
+	}
+}
+
+/* Desktop: VPHero already flex-centers the container; just stop it from
+ * forcing 100% height so the glow tracks the terminal, not the column. */
+@media (min-width: 960px) {
+	.VPHero .image:has(.bundo-terminal) {
+		/* Breathing room between the hero text column and the terminal. */
+		padding-left: clamp(40px, 6vw, 88px);
+	}
+
+	.VPHero .image-container:has(.bundo-terminal) {
+		height: auto;
+		min-height: 320px;
+	}
+}
+
+/* Soften the glow blob behind the terminal on narrow screens so it doesn't
+ * bleed over the text above it. */
+@media (max-width: 639px) {
+	.VPHero .image-container:has(.bundo-terminal) .image-bg {
+		width: 150px;
+		height: 150px;
+		opacity: 0.8;
+	}
+}
