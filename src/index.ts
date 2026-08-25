@@ -2,7 +2,7 @@
  * bundo — public library entry. `do.ts` files import from here.
  */
 
-import type { ArgSpec, BuiltTask, DepsCheck, StandardSchemaV1, TaskEntry, TaskInput } from "~/types";
+import type { ArgSpec, BuiltTask, DepsCheck, StandardSchemaV1, TaskEntry, TaskInput } from "./types";
 
 export type {
 	ArgSpec,
@@ -18,7 +18,7 @@ export type {
 	TaskInput,
 	TaskLogger,
 	Tasks,
-} from "~/types";
+} from "./types";
 
 /** Runtime brand so the CLI can verify a do.ts default export. */
 export const TASKS_BRAND: unique symbol = Symbol.for("bundo.tasks.v1");

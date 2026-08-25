@@ -6,3 +6,4 @@ dist/
 .env.*.local
 !test/fixtures/**/.env.local
 !test/fixtures/**/.env.*.local
+*.tgz

@@ -51,8 +51,9 @@ describe("expandValue", () => {
 			APP: "bundo",
 		})[name];
 
-	test("$VAR and ${VAR}", () => {
+	test("dollar-var and dollar-brace-var", () => {
 		expect(expandValue("$APP at $HOME", lookup)).toBe("bundo at /home/u");
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: literal test input
 		expect(expandValue("${APP}-x", lookup)).toBe("bundo-x");
 	});
 
