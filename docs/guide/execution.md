@@ -50,11 +50,70 @@ lint      | ✓ clean
 
 1. Tasks that depend on it (transitively) are **skipped**
 2. Running siblings receive a **cooperative abort** — their `ctx.signal` fires, then after a 5s grace period the whole process tree is killed
-3. bundo exits `1` with a summary: `— 2 ok, 1 failed, 2 skipped`
+3. bundo exits `1` with a summary: `— 2 ok, 1 failed, 2 skipped · 3.1s total`
 
 ```sh
 bundo --continue check   # run everything independent of the failure anyway
 ```
+
+## Retries
+
+Retries are **opt-in per task** — bundo never silently re-runs anything:
+
+```ts
+deploy: {
+	retry: { attempts: 3, delayMs: 500, backoff: "exponential" },
+	run: async ({ $ }) => { await $`bun run deploy`; },
+},
+smoke: {
+	retry: 2, // shorthand: up to 2 total attempts
+	run: async ({ $ }) => { await $`curl -f https://example.com/health`; },
+},
+```
+
+- `attempts` counts **total** runs, including the first. `backoff: "exponential"` doubles `delayMs` per retry.
+- Each attempt is a fresh execution (fresh process on the child backend). Failed attempts print `↻ deploy failed — retrying (attempt 2/3)`.
+- Fail-fast and Ctrl-C cancel a pending retry delay immediately.
+- Caching interacts sanely: the result is cached only after a **successful** attempt, and `✓ deploy (2.3s, 2 attempts)` tells you it was bumpy.
+- Services can't declare `retry` (watch mode restarts them instead).
+
+## Timeouts
+
+```ts
+e2e: {
+	timeoutMs: 120_000,
+	run: async ({ $, signal }) => { await $`bun run e2e`; },
+},
+```
+
+When the budget is exceeded, the task gets the standard cooperative abort (`ctx.signal` fires → 5s grace → tree kill) and fails with `timed out after 120000ms`. The budget is **per attempt**, so it composes with `retry`. In-process chains abort cooperatively via `ctx.signal` — a run body that ignores the signal can outlive its budget there; use `--isolate` if you need the hard kill.
+
+## The run report (`--json`)
+
+`bundo <task> --json` moves all task logs to stderr and prints exactly one JSON document on stdout when the run finishes — status, timing, and cache result per task, plus the [critical path](#timing-and-the-critical-path):
+
+```sh
+bundo build --json | jq '.summary'
+```
+
+See [Exit Codes & JSON](/reference/exit-codes-and-json#run-report-json) for the full schema. The report is also emitted on failure (the process still exits `1` with the error JSON on stderr), which makes it ideal for CI and [AI agents](/reference/ai-agents).
+
+## Timing and the critical path
+
+Every run ends with a timing summary:
+
+```txt
+— 5 ok (2 cached) · 3.2s total · critical path 2.8s (a → b → d)
+```
+
+The **critical path** is the dependency chain that determined your wall-clock time — the thing to optimize when a run feels slow. For the full picture:
+
+```sh
+bundo build --profile          # writes .bundo/trace.json
+bundo build --profile=t.json   # custom path
+```
+
+The trace is Chrome trace-event format — open it in `chrome://tracing` or [Perfetto](https://ui.perfetto.dev) to see every task as a timeline slice, lane-packed by actual concurrency.
 
 ::: tip Respect the signal
 Long-running task bodies should check `ctx.signal.aborted` (or pass it to APIs that accept `AbortSignal`) so fail-fast and Ctrl-C stay graceful. Anything that ignores it gets tree-killed after the grace period.

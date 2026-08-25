@@ -31,15 +31,27 @@ features:
     link: /guide/args-and-flags
   - icon: 🕸️
     title: Parallel DAG scheduler
-    details: Independent branches run concurrently with prefixed, multiplexed output. Fail-fast with cooperative aborts, or --continue.
+    details: Independent branches run concurrently with prefixed, multiplexed output. Conditional deps, opt-in retries, timeouts, fail-fast with cooperative aborts.
     link: /guide/execution
   - icon: ⚡
     title: Fingerprint caching
-    details: Declare inputs and outputs; unchanged tasks are skipped by content hash. touch won't bust it, real edits will.
+    details: Declare inputs and outputs; unchanged tasks are skipped by content hash. bundo explain tells you exactly why anything re-runs.
     link: /guide/caching
+  - icon: 🔌
+    title: Services that are actually ready
+    details: Readiness probes (log line, TCP port, HTTP health) gate dependents. bundo dev brings your stack up in order — db, api, web.
+    link: /guide/watch-and-services
+  - icon: 🌿
+    title: Git-aware monorepo runs
+    details: bundo test --affected runs only what changed vs your base branch — through both the package graph and the task graph.
+    link: /guide/workspaces
+  - icon: 📊
+    title: Run reports & traces
+    details: bundo build --json emits a full execution report — per-task timing, cache result, critical path. --profile writes a Chrome trace.
+    link: /guide/execution
   - icon: 🤖
     title: Built for AI agents too
-    details: ls --json, --dry=json, --print-env --json, machine-parseable errors, stable exit codes. Your agent reads the plan before running it.
+    details: ls --json, --dry=json, explain --json, run reports, machine-parseable errors, stable exit codes. Your agent reads the plan before running it.
     link: /reference/ai-agents
 ---
 
@@ -88,7 +100,9 @@ bundo                     # grouped task list
 bundo build               # run a task + its deps
 bundo deploy -d           # typed flags
 bundo --watch build       # re-run on change
-bundo --print-env deploy  # explain the environment
+bundo explain build       # why will it run? what's cached?
+bundo --affected test     # only what changed vs the base branch
+bundo --json build        # full run report for CI / agents
 ```
 
 :::

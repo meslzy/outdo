@@ -20,14 +20,23 @@ export class OutputMultiplexer {
 	readonly #order: LogOrder;
 	readonly #logs: OutputLogs;
 	readonly #labelWidth: number;
+	readonly #dest: NodeJS.WriteStream;
 
-	constructor(order: LogOrder, logs: OutputLogs, taskNames: readonly string[]) {
+	constructor(
+		order: LogOrder,
+		logs: OutputLogs,
+		taskNames: readonly string[],
+		dest: NodeJS.WriteStream = process.stdout,
+	) {
 		this.#order = order;
 		this.#logs = logs;
 		this.#labelWidth = Math.max(0, ...taskNames.map((name) => name.length));
+		// Task-stdout destination — redirected to stderr under `--json` so
+		// stdout carries exactly one machine-readable document.
+		this.#dest = dest;
 	}
 
-	sink(name: string): TaskSink {
+	sink(name: string, onLine?: (line: string) => void): TaskSink {
 		const color = prefixColor(name);
 		const prefix = `${color(`${name.padEnd(this.#labelWidth)} |`)} `;
 		const decoder = new TextDecoder();
@@ -36,10 +45,13 @@ export class OutputMultiplexer {
 		const buffered: string[] = [];
 
 		const emit = (line: string, isErr: boolean): void => {
+			// Observers (readiness log probes) see every raw line regardless of
+			// grouping or --output-logs.
+			onLine?.(line);
 			const text = `${prefix}${line}\n`;
 			if (this.#order === "stream") {
 				if (this.#logs !== "none") {
-					(isErr ? process.stderr : process.stdout).write(text);
+					(isErr ? process.stderr : this.#dest).write(text);
 				}
 			} else {
 				buffered.push(text);
@@ -75,7 +87,7 @@ export class OutputMultiplexer {
 				if (this.#order === "grouped" && buffered.length > 0) {
 					const show = this.#logs === "full" || (!ok && this.#logs !== "none");
 					if (show) {
-						process.stdout.write(buffered.join(""));
+						this.#dest.write(buffered.join(""));
 					}
 					buffered.length = 0;
 				}

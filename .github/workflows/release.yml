@@ -1,0 +1,134 @@
+name: Release
+
+# Publishes to npm via trusted publishing (OIDC — no token stored in the repo).
+# One-time setup: publish once manually, then register this workflow as the
+# package's trusted publisher on npmjs.com (owner meslzy, repo bundo,
+# workflow release.yml). After that, bumping package.json version on main
+# publishes automatically; an unchanged version skips with a warning.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "package.json"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # tag + GitHub Release after publishing
+  id-token: write # npm trusted publishing (OIDC)
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: echo "version=$(jq -r .version package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already published
+        id: check
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/bundo/${{ steps.version.outputs.version }}")
+          if [ "$code" = "200" ]; then
+            echo "::warning::bundo@${{ steps.version.outputs.version }} is already on npm — bump the version to publish"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Bun
+        if: steps.check.outputs.skip == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        if: steps.check.outputs.skip == 'false'
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        if: steps.check.outputs.skip == 'false'
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        if: steps.check.outputs.skip == 'false'
+        run: bunx biome ci .
+
+      - name: Test
+        if: steps.check.outputs.skip == 'false'
+        run: bun test
+
+      - name: Build
+        if: steps.check.outputs.skip == 'false'
+        run: bun scripts/build.ts
+
+      - name: Set up Node for trusted publishing
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Update npm (OIDC needs npm >= 11.5.1)
+        if: steps.check.outputs.skip == 'false'
+        run: npm install -g npm@latest
+
+      - name: Publish
+        if: steps.check.outputs.skip == 'false'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ""
+
+      - name: Tag and create GitHub Release
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $tag already exists — skipping"
+            exit 0
+          fi
+          # Pull this version's section out of CHANGELOG.md; fall back to
+          # auto-generated notes when the section is missing.
+          awk -v ver="$VERSION" '
+            $1 == "##" && ($2 == ver || $2 == "["ver"]") { on=1; next }
+            on && $1 == "##" { exit }
+            on { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ -s /tmp/notes.md ]; then
+            gh release create "$tag" --title "$tag" --notes-file /tmp/notes.md --target "$GITHUB_SHA"
+          else
+            echo "::warning::no CHANGELOG.md section for $VERSION — using auto-generated notes"
+            gh release create "$tag" --title "$tag" --generate-notes --target "$GITHUB_SHA"
+          fi
+
+      - name: Summarize
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SKIPPED: ${{ steps.check.outputs.skip }}
+        run: |
+          {
+            if [ "$SKIPPED" = "true" ]; then
+              echo "### bundo@$VERSION — already on npm, nothing published"
+              echo ""
+              echo "Bump \`package.json\` version to release."
+            else
+              echo "### Published bundo@$VERSION"
+              echo ""
+              echo "Trusted publishing (OIDC) with provenance. Tagged \`v$VERSION\` + GitHub Release created."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

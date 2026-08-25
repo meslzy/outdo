@@ -16,6 +16,7 @@ Usage
   bundo <task1> <task2>        Run multiple tasks
   bundo ls [--json]            List tasks (machine-readable with --json)
   bundo graph [--dot]          Print the dependency graph (mermaid or dot)
+  bundo explain <task>         Explain the plan: cache verdicts, inputs, backend
   bundo init                   Scaffold a starter do.ts
   bundo completion <shell>     Print shell completions (bash|zsh|fish|powershell)
   bundo --print-env <task>     Explain resolved env + validate the task's schema
@@ -27,9 +28,13 @@ Flags
       --log-order <mode>       stream | grouped | auto (default: auto)
       --output-logs <mode>     full | errors-only | none (default: full)
       --dry[=json]             Show the plan without running anything
+      --affected[=<rev>]       Only run tasks affected by git changes vs <rev>
+                               (default: merge-base with origin's default branch)
+      --profile[=<file>]       Write a Chrome trace of the run (.bundo/trace.json)
   -f, --force                  Ignore the fingerprint cache
   -F, --filter <pattern>       Filter workspace packages
-      --json                   Machine-readable output
+      --isolate                Force the child-process backend (no in-process chains)
+      --json                   Machine-readable output (runs emit a JSON report)
       --color <mode>           auto | always | never (also --no-color)
   -h, --help                   Show this help
   -V, --version                Show version
@@ -67,6 +72,10 @@ async function main(): Promise<number> {
 		case "print-env": {
 			const { printEnvCommand } = await import("~/cli/print-env");
 			return await printEnvCommand(command.task, flags);
+		}
+		case "explain": {
+			const { explainCommand } = await import("~/cli/explain");
+			return await explainCommand(command.task, flags);
 		}
 		case "graph": {
 			const { graphCommand } = await import("~/cli/graph");

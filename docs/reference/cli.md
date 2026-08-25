@@ -11,6 +11,7 @@
 | `bundo <task1> <task2>` | run multiple tasks (shared deps run once) |
 | `bundo ls [--json]` | list tasks — machine-readable with `--json` |
 | `bundo graph [--dot] [--json]` | dependency graph as mermaid, graphviz dot, or JSON |
+| `bundo explain <task> [--json]` | why each planned task will run or skip (cache diagnosis, inputs, backend); never runs |
 | `bundo --print-env <task> [--json]` | resolved env with per-key provenance + schema verdict; never runs |
 | `bundo init` | scaffold a starter `do.ts` (+ gitignore `.bundo/`) |
 | `bundo completion <shell>` | completion script for `bash` \| `zsh` \| `fish` \| `powershell` |
@@ -27,12 +28,17 @@ Global flags go **before** the task name; everything after the task name belongs
 | `--log-order <mode>` | `stream` \| `grouped` \| `auto` | `auto` | live prefixed lines vs per-task blocks (`auto`: stream in a TTY, grouped in CI) |
 | `--output-logs <mode>` | `full` \| `errors-only` \| `none` | `full` | how much child output to show |
 | `--dry[=json]` | | off | print the plan (incl. cache status) without running |
+| `--affected[=<rev>]` | rev via `=` form | off | only run tasks [affected by git changes](/guide/workspaces#git-aware-runs-affected) vs `<rev>` (default: merge-base with origin's default branch) |
+| `--profile[=<file>]` | path via `=` form | off | write a [Chrome trace](/guide/execution#timing-and-the-critical-path) of the run (default `.bundo/trace.json`) |
 | `-f, --force` | | off | ignore the fingerprint cache (still records fresh fingerprints) |
 | `-F, --filter <pattern>` | repeatable | | select workspace packages — see [Workspaces](/guide/workspaces#filtering-f-filter) |
-| `--json` | | off | machine-readable output (and JSON error shape on stderr) |
+| `--isolate` | | off | force the child-process backend even for pure chains (hard kill on timeout, multiplexed output) |
+| `--json` | | off | machine-readable output — runs emit a [JSON report](/reference/exit-codes-and-json#run-report-json) on stdout, logs move to stderr |
 | `--color <mode>` | `auto` \| `always` \| `never` | `auto` | also `--no-color`; honors `NO_COLOR` / `FORCE_COLOR` |
 | `-h, --help` | | | global help; `bundo <task> --help` shows the task's flags |
 | `-V, --version` | | | print the version |
+
+`--affected` and `--profile` take their value with `=` only (`--affected=main`, not `--affected main`) so a following task name is never swallowed. `--watch` is exclusive with `--json`, `--profile`, and `--affected` (usage error, exit `2`).
 
 ## Environment variables bundo reads
 

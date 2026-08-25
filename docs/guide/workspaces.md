@@ -60,6 +60,31 @@ Dependency relations come from member `package.json` `dependencies`/`devDependen
 When filters are given, **root tasks are excluded** — filters select packages. A filter matching nothing is a usage error, not a silent no-op.
 :::
 
+## Git-aware runs: `--affected`
+
+On a big graph, most CI time goes to packages nothing touched. `--affected` selects only the requested tasks that git says could have changed:
+
+```sh
+bundo build --affected                 # vs the merge-base with origin's default branch
+bundo test --affected=origin/main      # explicit base rev
+bundo build --affected -F '*'          # composes with filters
+```
+
+```txt
+affected vs origin/main (merge-base 4f2a91c): running 2 of 7 requested task(s)
+```
+
+A task counts as affected when:
+
+- a changed file matches its `inputs` globs, or its own `do.ts` changed
+- it declares **no** `inputs` and anything under its package changed (declaring `inputs` is your opt-in to precision)
+- it lives in a package that (transitively) **depends on** a changed package — `packages/ui` changes ripple to every app that consumes it
+- one of its task-graph dependencies is affected
+
+The changed set includes committed diffs vs the base, staged/unstaged edits, and untracked files. Kept tasks still run with their full dependency subgraphs — unaffected deps are just fast cache hits. When nothing is affected, bundo prints so and exits `0`.
+
+`--dry=json` adds an `affected: { base, kept, dropped }` block so you can audit the selection without running anything.
+
 ## Member-local mode
 
 Run bundo from **inside** a member directory and it stays local — the nearest `do.ts` wins, tasks keep their bare names, and nothing fans out:

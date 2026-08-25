@@ -104,6 +104,71 @@ export type ArgsOut<A> = [
 	: Record<string, never>;
 
 // --------------------------------------------------------------------------
+// Dependency entries
+// --------------------------------------------------------------------------
+
+/** Object form of a dependency entry. */
+export interface DepRef<Name extends string = string, Out = unknown> {
+	readonly task: Name;
+	/**
+	 * Edge is active iff `env[name]` is truthy (unset, "", "0", "false" →
+	 * inactive) or the predicate returns true. Evaluated once at plan time
+	 * against the resolved dotenv cascade.
+	 */
+	readonly if?: string | ((env: RawEnv) => boolean);
+	/** Soft-skip when the named task does not exist in this do.ts. */
+	readonly optional?: boolean;
+	/** Phantom output type carried by `from()`; never present at runtime. */
+	readonly "~out"?: Out;
+}
+
+export type DepEntry<Name extends string = string> = Name | DepRef<Name, unknown>;
+
+/** The awaited return type of a task's `run()` — its data output. */
+export type OutputOf<T> = T extends {
+	run?: infer F;
+}
+	? [
+			NonNullable<F>,
+		] extends [
+			never,
+		]
+		? undefined
+		: NonNullable<F> extends (...args: never) => infer R
+			? Awaited<R>
+			: undefined
+	: undefined;
+
+type DepEntryName<E> = E extends string
+	? E
+	: E extends {
+				readonly task: infer N extends string;
+			}
+		? N
+		: never;
+
+type DepEntryOut<E> = [
+	E,
+] extends [
+	DepRef<string, infer O>,
+]
+	? E extends
+			| {
+					readonly if: unknown;
+			  }
+			| {
+					readonly optional: true;
+			  }
+		? O | undefined
+		: O
+	: unknown;
+
+/** `ctx.deps` shape inferred from a task's dep entries. */
+export type DepsDataOf<Deps extends readonly DepEntry[]> = {
+	readonly [E in Deps[number] as DepEntryName<E>]: DepEntryOut<E>;
+};
+
+// --------------------------------------------------------------------------
 // Task context
 // --------------------------------------------------------------------------
 
@@ -114,13 +179,15 @@ export interface TaskLogger {
 	debug(...args: unknown[]): void;
 }
 
-export interface TaskCtx<Env = RawEnv, Args = Record<string, never>> {
+export interface TaskCtx<Env = RawEnv, Args = Record<string, never>, Deps = Readonly<Record<string, unknown>>> {
 	/** Bun Shell, pre-configured with the task's cwd and resolved env. */
 	$: typeof $;
 	/** Validated env (output of the task's schema), or the raw resolved env map. */
 	env: Env;
 	/** Parsed per-task CLI flags, typed from the task's `args` declaration. */
 	args: Args;
+	/** Data outputs of this task's dependencies (their `run()` return values). */
+	deps: Deps;
 	/** Raw arguments after `--`. Only delivered to explicitly requested tasks. */
 	rest: string[];
 	/** Aborted on Ctrl-C / watch supersession. Long tasks should respect it. */
@@ -137,6 +204,29 @@ export interface TaskCtx<Env = RawEnv, Args = Record<string, never>> {
 // Task definitions
 // --------------------------------------------------------------------------
 
+/** How a persistent task signals readiness. Exactly one of log/url/port. */
+export interface ReadyProbe {
+	/** Substring matched against the service's own output lines (stdout or stderr). */
+	readonly log?: string;
+	/** HTTP GET must return 2xx. */
+	readonly url?: string;
+	/** TCP connect must succeed. */
+	readonly port?: number;
+	/** Host for `port` probes. Default "127.0.0.1". */
+	readonly host?: string;
+	/** Total readiness budget before the service is failed. Default 30000. */
+	readonly timeoutMs?: number;
+}
+
+export interface RetrySpec {
+	/** Maximum total attempts (including the first). Must be >= 1. */
+	readonly attempts: number;
+	/** Delay before each retry. Default 0. */
+	readonly delayMs?: number;
+	/** "exponential" doubles delayMs per retry. Default "fixed". */
+	readonly backoff?: "fixed" | "exponential";
+}
+
 interface TaskMeta {
 	/** One-line description shown in the task list. */
 	desc?: string;
@@ -148,10 +238,16 @@ interface TaskMeta {
 	outputs?: readonly string[];
 	/** Globs that trigger a rerun in `--watch` mode (defaults to `inputs`). */
 	watch?: readonly string[];
-	/** Long-running service: stays alive, dependents start once it has spawned. */
+	/** Long-running service: stays alive, dependents start once it is ready. */
 	persistent?: boolean;
 	/** Working directory, relative to the do.ts location. */
 	cwd?: string;
+	/** Readiness probe — persistent tasks only; dependents wait for it. */
+	ready?: ReadyProbe;
+	/** Re-run on failure — non-persistent tasks only. Number = total attempts. */
+	retry?: number | RetrySpec;
+	/** Per-attempt time budget (ms) — non-persistent tasks only. */
+	timeoutMs?: number;
 }
 
 /**
@@ -159,7 +255,7 @@ interface TaskMeta {
  * `env`/`args` — use the `task()` builder for those, which types the ctx.
  */
 export interface InlineTaskDef extends TaskMeta {
-	deps?: readonly string[];
+	deps?: readonly DepEntry[];
 	run?: (ctx: TaskCtx) => unknown;
 }
 
@@ -167,14 +263,15 @@ export interface InlineTaskDef extends TaskMeta {
 export interface TaskInput<
 	E extends StandardSchemaV1 | undefined,
 	A extends Record<string, ArgSpec> | undefined,
-	Deps extends readonly string[],
+	Deps extends readonly DepEntry[],
+	R = unknown,
 > extends TaskMeta {
 	deps?: Deps;
 	/** Standard Schema for required env vars — validated before anything runs. */
 	env?: E;
 	/** Typed CLI flags: `bundo <task> --flag value`. */
 	args?: A;
-	run?: (ctx: TaskCtx<EnvOut<E>, ArgsOut<A>>) => unknown;
+	run?: (ctx: TaskCtx<EnvOut<E>, ArgsOut<A>, DepsDataOf<Deps>>) => R;
 }
 
 /** Brand carried by `task()` results (set non-enumerably at runtime). */
@@ -186,8 +283,9 @@ export interface BuiltMark {
 export type BuiltTask<
 	E extends StandardSchemaV1 | undefined = StandardSchemaV1 | undefined,
 	A extends Record<string, ArgSpec> | undefined = Record<string, ArgSpec> | undefined,
-	Deps extends readonly string[] = readonly string[],
-> = TaskInput<E, A, Deps> & BuiltMark;
+	Deps extends readonly DepEntry[] = readonly DepEntry[],
+	R = unknown,
+> = TaskInput<E, A, Deps, R> & BuiltMark;
 
 /**
  * What `defineTasks` accepts for a builder-made entry. Deliberately minimal:
@@ -198,17 +296,30 @@ export type BuiltTask<
  * on non-fresh values); the required `~built` brand keeps literals out.
  */
 export interface BuiltEntry extends TaskMeta, BuiltMark {
-	deps?: readonly string[];
+	deps?: readonly DepEntry[];
 }
 
 export type TaskEntry = InlineTaskDef | BuiltEntry;
+
+/** Names an entry's deps must resolve; optional entries are exempt (they may be absent). */
+type RequiredDepName<E> = E extends string
+	? E
+	: E extends {
+				readonly optional: true;
+			}
+		? never
+		: E extends {
+					readonly task: infer N extends string;
+				}
+			? N
+			: never;
 
 /** The dep names an entry declares, as a literal union (deps may be optional). */
 type DepsOf<V> = V extends {
 	deps?: infer D;
 }
-	? D extends readonly (infer N extends string)[]
-		? N
+	? D extends readonly (infer E)[]
+		? RequiredDepName<E>
 		: never
 	: never;
 
@@ -219,9 +330,15 @@ export type DepsCheck<V, Names extends string> = [
 	Names,
 ]
 	? unknown
-	: {
-			deps: readonly Names[];
-		};
+	: [
+				string,
+			] extends [
+				DepsOf<V>,
+			]
+		? unknown // deps widened to plain string — no literals to check
+		: {
+				deps?: readonly DepEntry<Names>[];
+			};
 
 /** A normalized task map as consumed by the runner (type-erased). */
 export type Tasks = Record<string, TaskEntry>;

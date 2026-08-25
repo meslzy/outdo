@@ -1,4 +1,5 @@
 import { defineConfig } from "vitepress";
+import llmstxt from "vitepress-plugin-llms";
 
 export default defineConfig({
 	title: "bundo",
@@ -6,6 +7,16 @@ export default defineConfig({
 	base: "/bundo/",
 	appearance: "dark",
 	lastUpdated: true,
+	vite: {
+		plugins: [
+			// Emits llms.txt (index) + llms-full.txt (full docs) into the built
+			// site so AI agents can ingest the documentation in one request.
+			llmstxt({
+				// The plugin appends the site `base` (/bundo/) itself.
+				domain: "https://meslzy.github.io",
+			}),
+		],
+	},
 	head: [
 		[
 			"link",
@@ -77,7 +88,7 @@ export default defineConfig({
 				activeMatch: "/reference/",
 			},
 			{
-				text: "v0.1.0",
+				text: "v0.0.1",
 				link: "https://github.com/meslzy/bundo/releases",
 			},
 		],

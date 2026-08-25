@@ -3,13 +3,15 @@
  *
  * Backend choice (automatic):
  * - in-process sequential — pure dependency chains with no services and no
- *   --isolate: zero spawn overhead, stdio fully inherited (TTY colors,
+ *   --isolate/--json: zero spawn overhead, stdio fully inherited (TTY colors,
  *   interactive prompts work).
  * - child processes — anything that can parallelize, contains a persistent
- *   service, or was forced with --isolate: piped stdio, prefixed multiplexed
- *   output, cooperative abort + tree kill.
+ *   service, was forced with --isolate, or emits a --json run report: piped
+ *   stdio, prefixed multiplexed output, cooperative abort + tree kill.
  */
 
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { loadProjectFromCwd } from "~/cli/load";
 import type { Command, GlobalFlags } from "~/cli/parse";
 import { parseTaskArgs, renderTaskHelp, wantsTaskHelp } from "~/core/argspec";
@@ -19,11 +21,16 @@ import { startChildTask } from "~/core/child";
 import { resolveEnv, validateAll } from "~/core/envresolve";
 import { BundoError, EXIT } from "~/core/errors";
 import { buildCtx, runTaskInProcess } from "~/core/executor";
-import { subgraphFor, topoOrder } from "~/core/graph";
+import type { ChangedResult } from "~/core/gitaffected";
+import { detectChanged, selectAffected } from "~/core/gitaffected";
+import { applyConditions, subgraphFor, topoOrder } from "~/core/graph";
 import { Lifecycle } from "~/core/lifecycle";
 import { dim, green, red, yellow } from "~/core/logger";
 import type { Project, Task } from "~/core/model";
 import { OutputMultiplexer } from "~/core/output";
+import type { RunReport } from "~/core/report";
+import { buildReport, formatSummary, toChromeTrace } from "~/core/report";
+import { retryDelayMs, sleepAbortable } from "~/core/retry";
 import type { StartedTask, TaskResult } from "~/core/scheduler";
 import { isChain, schedule } from "~/core/scheduler";
 import { didYouMean } from "~/core/util";
@@ -35,9 +42,56 @@ type RunCommand = Extract<
 	}
 >;
 
+interface AffectedInfo {
+	base: string;
+	kept: string[];
+	dropped: string[];
+}
+
 export async function runCommand(command: RunCommand, flags: GlobalFlags): Promise<number> {
-	const project = await loadProjectFromCwd(flags.filter);
-	const requested = resolveRequested(project, command.tasks);
+	if (flags.watch && flags.json) {
+		throw new BundoError("usage", "--watch cannot be combined with --json (watch is a streaming mode).");
+	}
+	if (flags.watch && flags.profile !== false) {
+		throw new BundoError("usage", "--watch cannot be combined with --profile.");
+	}
+	if (flags.watch && flags.affected !== false) {
+		throw new BundoError("usage", "--watch cannot be combined with --affected.");
+	}
+
+	const loaded = await loadProjectFromCwd(flags.filter);
+
+	// Env: resolve once, apply the dotenv cascade to this process (process env
+	// wins), then evaluate conditional dep edges against the resolved env.
+	const resolved = resolveEnv(loaded.rootDir);
+	for (const [key, entry] of resolved.keys) {
+		if (entry.source !== "process" && process.env[key] === undefined) {
+			process.env[key] = entry.value;
+		}
+	}
+	const project: Project = {
+		...loaded,
+		tasks: applyConditions(loaded.tasks, resolved.env),
+	};
+
+	let requested = resolveRequested(project, command.tasks);
+
+	// Git-aware selection: keep only tasks affected vs the base rev.
+	let affectedInfo: AffectedInfo | undefined;
+	if (flags.affected !== false) {
+		const changed: ChangedResult = await detectChanged(project.rootDir, flags.affected.base);
+		const { kept, dropped } = selectAffected(project, requested, changed);
+		affectedInfo = {
+			base: changed.base,
+			kept: kept.map((t) => t.name),
+			dropped: dropped.map((t) => t.name),
+		};
+		console.error(dim(`affected vs ${changed.base}: running ${kept.length} of ${requested.length} requested task(s)`));
+		if (kept.length === 0 && flags.dry === false) {
+			return EXIT.ok;
+		}
+		requested = kept;
+	}
 
 	// Per-task flags only make sense for a single task.
 	if (command.taskArgv.length > 0 && requested.length !== 1) {
@@ -50,14 +104,7 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 	}
 	const targetArgs = requested.length === 1 ? parseTaskArgs(target, command.taskArgv) : {};
 
-	// Env: resolve once, apply the dotenv cascade to this process (process env
-	// wins), and validate every schema in the plan before anything runs.
-	const resolved = resolveEnv(project.rootDir);
-	for (const [key, entry] of resolved.keys) {
-		if (entry.source !== "process" && process.env[key] === undefined) {
-			process.env[key] = entry.value;
-		}
-	}
+	// Validate every schema in the plan before anything runs.
 	const subset = subgraphFor(
 		project.tasks,
 		requested.map((t) => t.name),
@@ -78,10 +125,14 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		envOutputs,
 		subset,
 		fingerprints: new Map(),
+		outputs: new Map(),
 		force: flags.force,
 	};
 
 	if (flags.dry !== false) {
+		if (flags.profile !== false) {
+			console.error(dim("--profile ignored under --dry (nothing was run)"));
+		}
 		// Preview pass on the current disk state (real decisions happen at
 		// task start, after dependencies have produced their outputs).
 		const decisions = new Map<string, CacheDecision>();
@@ -89,10 +140,15 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 			const decision = await decideCache(shared, task);
 			if (cacheable(task)) {
 				decisions.set(task.name, decision);
+				if (decision.hit) {
+					// Seed replayed outputs so downstream previews compose.
+					shared.outputs.set(task.name, decision.previousOutput);
+				}
 			}
 		}
 		shared.fingerprints.clear();
-		return printDryRun(planned, requested, flags, decisions);
+		shared.outputs.clear();
+		return printDryRun(planned, requested, flags, decisions, affectedInfo);
 	}
 
 	if (flags.watch) {
@@ -100,7 +156,7 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 		return await runWatch(shared, flags);
 	}
 	const hasServices = planned.some((task) => task.persistent);
-	const sequentialOk = !flags.isolate && !hasServices && isChain(project.tasks, order);
+	const sequentialOk = !flags.isolate && !flags.json && !hasServices && isChain(project.tasks, order);
 	return sequentialOk ? await runSequential(shared) : await runParallel(shared, flags);
 }
 
@@ -116,6 +172,8 @@ export interface SharedRunState {
 	subset: ReadonlySet<string>;
 	/** Fingerprints recorded as tasks start (deps always precede dependents). */
 	fingerprints: Map<string, string>;
+	/** Data outputs recorded as tasks finish (or replay from cache). */
+	outputs: Map<string, unknown>;
 	force: boolean;
 }
 
@@ -127,10 +185,26 @@ function restFor(state: SharedRunState, task: Task): string[] {
 	return state.requestedNames.has(task.name) ? state.rest : [];
 }
 
+/** ctx.deps keys use the author's local dep names (unqualified for members). */
+function depsDataFor(state: SharedRunState, task: Task): Record<string, unknown> {
+	const hash = task.name.indexOf("#");
+	const prefix = hash === -1 ? undefined : task.name.slice(0, hash + 1);
+	const out: Record<string, unknown> = {};
+	for (const dep of task.deps) {
+		if (!state.subset.has(dep)) {
+			continue;
+		}
+		const local = prefix !== undefined && dep.startsWith(prefix) ? dep.slice(prefix.length) : dep;
+		out[local] = state.outputs.get(dep);
+	}
+	return out;
+}
+
 /**
  * Build the scheduler `start` function shared by plain parallel runs and
  * watch mode. The cache decision is async (hashing) but the scheduler expects
- * a synchronous start — bridged with a promise of the started task.
+ * a synchronous start — bridged with a promise of the started task. Retries
+ * wrap the whole child attempt (fresh worker, sink, and timeout per attempt).
  */
 export function makeStart(
 	state: SharedRunState,
@@ -141,11 +215,20 @@ export function makeStart(
 		const startedP = (async () => {
 			const decision = await decideCache(state, task);
 			if (cacheable(task) && decision.hit) {
+				const now = performance.now();
+				state.outputs.set(task.name, decision.previousOutput);
 				const result: TaskResult = {
 					name: task.name,
 					status: "ok",
 					durationMs: 0,
+					startedAt: now,
+					endedAt: now,
 					cached: true,
+					...(decision.previousOutput !== undefined
+						? {
+								output: decision.previousOutput,
+							}
+						: {}),
 				};
 				console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
 				return {
@@ -153,30 +236,74 @@ export function makeStart(
 					result: Promise.resolve(result),
 				} satisfies StartedTask;
 			}
-			const started = startChildTask(task, {
-				configPath: state.project.configPath,
-				shellEnv: state.shellEnv,
-				envOutputs: state.envOutputs,
-				argsFor: (t) => argsFor(state, t),
-				restFor: (t) => restFor(state, t),
-				sinkFor: () => mux.sink(task.name),
-				lifecycle: lifecycleFor(task),
-			});
-			const finalized = started.result.then(async (result) => {
-				if (result.status === "ok" && cacheable(task)) {
-					await writeCache(state.project.rootDir, task, decision);
+
+			const lifecycle = lifecycleFor(task);
+			let current: StartedTask | undefined;
+			const attemptOnce = (): StartedTask =>
+				startChildTask(task, {
+					configPath: state.project.configPath,
+					shellEnv: state.shellEnv,
+					envOutputs: state.envOutputs,
+					argsFor: (t) => argsFor(state, t),
+					restFor: (t) => restFor(state, t),
+					depsFor: (t) => depsDataFor(state, t),
+					sinkFor: (t, onLine) => mux.sink(t.name, onLine),
+					lifecycle,
+				});
+
+			const max = task.retry?.attempts ?? 1;
+			const attempts = (async (): Promise<TaskResult> => {
+				for (let attempt = 1; ; attempt++) {
+					const started = attemptOnce();
+					current = started;
+					const result = await started.result;
+					if (result.status !== "failed" || attempt >= max || lifecycle.shuttingDown) {
+						return max > 1
+							? {
+									...result,
+									attempts: attempt,
+								}
+							: result;
+					}
+					const delay = retryDelayMs(task.retry as NonNullable<Task["retry"]>, attempt);
+					console.error(
+						`${yellow("↻")} ${task.name} failed — retrying (attempt ${attempt + 1}/${max})${delay > 0 ? dim(` in ${delay}ms`) : ""}`,
+					);
+					if (delay > 0 && !(await sleepAbortable(delay, lifecycle.signal))) {
+						return {
+							...result,
+							status: "aborted",
+							attempts: attempt,
+						};
+					}
+					if (lifecycle.shuttingDown) {
+						return {
+							...result,
+							status: "aborted",
+							attempts: attempt,
+						};
+					}
+				}
+			})();
+
+			const finalized = attempts.then(async (result) => {
+				if (result.status === "ok") {
+					state.outputs.set(task.name, result.output);
+					if (cacheable(task)) {
+						await writeCache(state.project.rootDir, task, decision, result.output);
+					}
 				}
 				printStatus(task, result);
 				return result;
 			});
 			return {
-				unblocked: started.unblocked,
+				// Services never retry (validated), so `current` is the only
+				// attempt and carries the readiness-gated unblock.
+				unblocked: task.persistent ? (current as StartedTask).unblocked : finalized.then(() => {}),
 				result: finalized,
-				...(started.stop !== undefined
-					? {
-							stop: started.stop,
-						}
-					: {}),
+				stop: async () => {
+					await current?.stop?.();
+				},
 			} satisfies StartedTask;
 		})();
 		return {
@@ -195,6 +322,7 @@ export function makeStart(
  * whatever files its (already finished) dependencies produced.
  */
 async function decideCache(state: SharedRunState, task: Task): Promise<CacheDecision> {
+	const subsetDeps = task.deps.filter((dep) => state.subset.has(dep));
 	const decision = await checkCache(
 		state.project.rootDir,
 		task,
@@ -202,7 +330,8 @@ async function decideCache(state: SharedRunState, task: Task): Promise<CacheDeci
 			envOutput: task.env !== undefined ? state.envOutputs.get(task.name) : null,
 			args: argsFor(state, task),
 			rest: restFor(state, task),
-			depFingerprints: task.deps.filter((dep) => state.subset.has(dep)).map((dep) => state.fingerprints.get(dep) ?? ""),
+			depFingerprints: subsetDeps.map((dep) => state.fingerprints.get(dep) ?? ""),
+			depOutputs: subsetDeps.map((dep) => JSON.stringify(state.outputs.get(dep) ?? null)),
 		},
 		state.force,
 	);
@@ -226,33 +355,169 @@ async function runSequential(state: SharedRunState): Promise<number> {
 	};
 	process.on("SIGINT", onSigint);
 
+	const results = new Map<string, TaskResult>();
+	const runStart = performance.now();
+	const wallStart = Date.now();
+	let failedResult: TaskResult | undefined;
+
 	try {
-		for (const task of state.planned) {
+		for (let i = 0; i < state.planned.length; i++) {
+			const task = state.planned[i] as Task;
 			if (interrupted) {
 				throw new BundoError("interrupted", "Interrupted.");
 			}
 			const decision = await decideCache(state, task);
 			if (cacheable(task) && decision.hit) {
+				const now = performance.now();
+				state.outputs.set(task.name, decision.previousOutput);
+				results.set(task.name, {
+					name: task.name,
+					status: "ok",
+					durationMs: 0,
+					startedAt: now,
+					endedAt: now,
+					cached: true,
+				});
 				console.error(`${green("✓")} ${task.name} ${dim("(cached)")}`);
 				continue;
 			}
-			const started = performance.now();
-			const ctx = buildCtx(task, {
-				env: state.envOutputs.get(task.name) ?? state.shellEnv,
-				shellEnv: state.shellEnv,
-				args: argsFor(state, task),
-				rest: restFor(state, task),
-				signal: aborter.signal,
-			});
-			await runTaskInProcess(task, ctx);
-			if (cacheable(task)) {
-				await writeCache(state.project.rootDir, task, decision);
+
+			const max = task.retry?.attempts ?? 1;
+			let result: TaskResult | undefined;
+			for (let attempt = 1; ; attempt++) {
+				const startedAt = performance.now();
+				const timeoutCtl = new AbortController();
+				const timer = task.timeoutMs !== undefined ? setTimeout(() => timeoutCtl.abort(), task.timeoutMs) : undefined;
+				let error: string | undefined;
+				let output: unknown;
+				try {
+					const ctx = buildCtx(task, {
+						env: state.envOutputs.get(task.name) ?? state.shellEnv,
+						shellEnv: state.shellEnv,
+						args: argsFor(state, task),
+						rest: restFor(state, task),
+						signal: AbortSignal.any([
+							aborter.signal,
+							timeoutCtl.signal,
+						]),
+						depsData: depsDataFor(state, task),
+					});
+					output = await runTaskInProcess(task, ctx);
+					if (timeoutCtl.signal.aborted) {
+						error = `Task "${task.name}" timed out after ${task.timeoutMs}ms`;
+					}
+				} catch (err) {
+					if (interrupted) {
+						throw err;
+					}
+					error = timeoutCtl.signal.aborted
+						? `Task "${task.name}" timed out after ${task.timeoutMs}ms`
+						: err instanceof Error
+							? err.message
+							: String(err);
+				} finally {
+					if (timer !== undefined) {
+						clearTimeout(timer);
+					}
+				}
+				const endedAt = performance.now();
+				const durationMs = Math.round(endedAt - startedAt);
+
+				if (error === undefined) {
+					result = {
+						name: task.name,
+						status: "ok",
+						durationMs,
+						startedAt,
+						endedAt,
+						...(max > 1
+							? {
+									attempts: attempt,
+								}
+							: {}),
+						...(output !== undefined
+							? {
+									output,
+								}
+							: {}),
+					};
+					state.outputs.set(task.name, output);
+					if (cacheable(task)) {
+						await writeCache(state.project.rootDir, task, decision, output);
+					}
+					console.error(
+						`${green("✓")} ${task.name} ${dim(`(${durationMs}ms${attempt > 1 ? `, ${attempt} attempts` : ""})`)}`,
+					);
+					break;
+				}
+				if (attempt >= max) {
+					result = {
+						name: task.name,
+						status: "failed",
+						durationMs,
+						startedAt,
+						endedAt,
+						error,
+						...(max > 1
+							? {
+									attempts: attempt,
+								}
+							: {}),
+					};
+					console.error(`${red("✗")} ${task.name} ${dim(`(${durationMs}ms)`)} ${error}`.trimEnd());
+					break;
+				}
+				const delay = retryDelayMs(task.retry as NonNullable<Task["retry"]>, attempt);
+				console.error(
+					`${yellow("↻")} ${task.name} failed — retrying (attempt ${attempt + 1}/${max})${delay > 0 ? dim(` in ${delay}ms`) : ""}`,
+				);
+				if (delay > 0 && !(await sleepAbortable(delay, aborter.signal))) {
+					throw new BundoError("interrupted", "Interrupted.");
+				}
 			}
-			const ms = Math.round(performance.now() - started);
-			console.error(`${green("✓")} ${task.name} ${dim(`(${ms}ms)`)}`);
+
+			results.set(task.name, result as TaskResult);
+			if ((result as TaskResult).status === "failed") {
+				failedResult = result;
+				for (let j = i + 1; j < state.planned.length; j++) {
+					const remaining = state.planned[j] as Task;
+					results.set(remaining.name, {
+						name: remaining.name,
+						status: "skipped",
+						durationMs: 0,
+					});
+				}
+				break;
+			}
 		}
 	} finally {
 		process.off("SIGINT", onSigint);
+	}
+
+	const report = buildReport({
+		planned: state.planned,
+		results,
+		services: new Set(),
+		runStart,
+		runEnd: performance.now(),
+		wallStart,
+	});
+	console.error(formatSummary(report));
+	if (failedResult !== undefined) {
+		throw new BundoError(
+			"task-failed",
+			failureMessage([
+				failedResult,
+			]),
+			{
+				failed: [
+					{
+						task: failedResult.name,
+						error: failedResult.error,
+					},
+				],
+			},
+		);
 	}
 	return EXIT.ok;
 }
@@ -265,10 +530,12 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 	const isTty = process.stdout.isTTY === true;
 	const logOrder = flags.logOrder === "auto" ? (isTty ? "stream" : "grouped") : flags.logOrder;
 	const concurrency = flags.concurrency ?? Math.max(1, navigator.hardwareConcurrency ?? 4);
+	// Under --json all task output moves to stderr; stdout carries the report.
 	const mux = new OutputMultiplexer(
 		logOrder,
 		flags.outputLogs,
 		state.planned.map((t) => t.name),
+		flags.json ? process.stderr : process.stdout,
 	);
 	const lifecycle = new Lifecycle();
 
@@ -284,6 +551,8 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 	};
 	process.on("SIGINT", onSigint);
 
+	const runStart = performance.now();
+	const wallStart = Date.now();
 	try {
 		const outcome = await schedule({
 			tasks: state.project.tasks,
@@ -298,11 +567,21 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 			throw new BundoError("interrupted", "Interrupted.");
 		}
 
+		const report = buildReport({
+			planned: state.planned,
+			results: outcome.results,
+			services: new Set(outcome.services.keys()),
+			runStart,
+			runEnd: performance.now(),
+			wallStart,
+		});
+		await emitArtifacts(report, state, flags);
+		console.error(formatSummary(report));
+
 		const failedResults = [
 			...outcome.results.values(),
 		].filter((r) => r.status === "failed");
 		if (failedResults.length > 0 || outcome.failed) {
-			printSummary(outcome.results);
 			throw new BundoError("task-failed", failureMessage(failedResults), {
 				failed: failedResults.map((r) => ({
 					task: r.name,
@@ -331,38 +610,34 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 			);
 		}
 
-		printSummary(outcome.results);
 		return EXIT.ok;
 	} finally {
 		process.off("SIGINT", onSigint);
 	}
 }
 
-export function printStatus(task: Task, result: TaskResult): void {
-	if (result.status === "ok" && !task.persistent) {
-		console.error(`${green("✓")} ${task.name} ${dim(`(${result.durationMs}ms)`)}`);
-	} else if (result.status === "failed") {
-		console.error(`${red("✗")} ${task.name} ${dim(`(${result.durationMs}ms)`)} ${result.error ?? ""}`.trimEnd());
+/** Emit the --json report (stdout) and/or the --profile Chrome trace. */
+async function emitArtifacts(report: RunReport, state: SharedRunState, flags: GlobalFlags): Promise<void> {
+	if (flags.json) {
+		console.log(JSON.stringify(report, null, 2));
+	}
+	if (flags.profile !== false) {
+		const path = resolve(state.project.rootDir, flags.profile);
+		mkdirSync(dirname(path), {
+			recursive: true,
+		});
+		await Bun.write(path, JSON.stringify(toChromeTrace(report)));
+		console.error(dim(`profile written to ${flags.profile}`));
 	}
 }
 
-export function printSummary(results: ReadonlyMap<string, TaskResult>): void {
-	const all = [
-		...results.values(),
-	];
-	const ok = all.filter((r) => r.status === "ok").length;
-	const failed = all.filter((r) => r.status === "failed").length;
-	const skipped = all.filter((r) => r.status === "skipped" || r.status === "aborted").length;
-	const parts = [
-		`${ok} ok`,
-	];
-	if (failed > 0) {
-		parts.push(red(`${failed} failed`));
+export function printStatus(task: Task, result: TaskResult): void {
+	if (result.status === "ok" && !task.persistent) {
+		const attempts = result.attempts !== undefined && result.attempts > 1 ? `, ${result.attempts} attempts` : "";
+		console.error(`${green("✓")} ${task.name} ${dim(`(${result.durationMs}ms${attempts})`)}`);
+	} else if (result.status === "failed") {
+		console.error(`${red("✗")} ${task.name} ${dim(`(${result.durationMs}ms)`)} ${result.error ?? ""}`.trimEnd());
 	}
-	if (skipped > 0) {
-		parts.push(yellow(`${skipped} skipped`));
-	}
-	console.error(dim(`— ${parts.join(", ")}`));
 }
 
 function failureMessage(failed: TaskResult[]): string {
@@ -423,7 +698,7 @@ function resolveRequested(project: Project, names: string[]): Task[] {
 	return out;
 }
 
-function applyDefaults(task: Task): Record<string, string | boolean | undefined> {
+export function applyDefaults(task: Task): Record<string, string | boolean | undefined> {
 	const out: Record<string, string | boolean | undefined> = {};
 	for (const [flag, spec] of Object.entries(task.args)) {
 		out[flag] = spec.default ?? (spec.type === "boolean" ? false : undefined);
@@ -436,20 +711,34 @@ function printDryRun(
 	requested: Task[],
 	flags: GlobalFlags,
 	decisions: ReadonlyMap<string, CacheDecision>,
+	affected: AffectedInfo | undefined,
 ): number {
 	const requestedNames = new Set(requested.map((t) => t.name));
 	if (flags.dry === "json") {
 		console.log(
 			JSON.stringify(
 				{
-					plan: planned.map((task) => ({
-						name: task.name,
-						requested: requestedNames.has(task.name),
-						deps: task.deps,
-						persistent: task.persistent,
-						hasRun: task.run !== undefined,
-						cached: decisions.get(task.name)?.hit === true,
-					})),
+					plan: planned.map((task) => {
+						const inactive = task.depEdges.map((edge) => edge.task).filter((dep) => !task.deps.includes(dep));
+						return {
+							name: task.name,
+							requested: requestedNames.has(task.name),
+							deps: task.deps,
+							...(inactive.length > 0
+								? {
+										inactiveDeps: inactive,
+									}
+								: {}),
+							persistent: task.persistent,
+							hasRun: task.run !== undefined,
+							cached: decisions.get(task.name)?.hit === true,
+						};
+					}),
+					...(affected !== undefined
+						? {
+								affected,
+							}
+						: {}),
 				},
 				null,
 				2,

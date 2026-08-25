@@ -39,6 +39,18 @@ const GLOBAL_FLAGS: [
 		"ignore the fingerprint cache",
 	],
 	[
+		"--affected",
+		"only run tasks affected by git changes",
+	],
+	[
+		"--profile",
+		"write a Chrome trace of the run",
+	],
+	[
+		"--isolate",
+		"force the child-process backend",
+	],
+	[
 		"--filter",
 		"filter workspace packages",
 	],
@@ -71,6 +83,10 @@ const SUBCOMMANDS: [
 	[
 		"graph",
 		"print the dependency graph",
+	],
+	[
+		"explain",
+		"explain cache/plan for a task",
 	],
 	[
 		"init",

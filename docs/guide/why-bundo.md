@@ -17,7 +17,10 @@ Every tool below is good at what it was built for. This page is the honest versi
 | Caching | mtime | content-hash skip (unstable) | checksum skip | mtime + experimental artifacts | **artifact restore** | **artifact restore + log replay** | **artifact restore + log replay** | — | checksum **skip only** |
 | Remote cache | — | — | — | experimental | GH Actions only | **✓ free tier** | Nx Cloud | — | **✗** |
 | Watch mode | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ with service restarts |
-| Service readiness | — | — | — | — | **✓ `readyWhen`** | persistent, not dependable | no readiness | — | dependable, **spawn-gated only** |
+| Service readiness | — | — | — | — | **✓ `readyWhen`** | persistent, not dependable | no readiness | — | **✓ log / port / http probes** |
+| Git-affected runs | — | — | — | — | — | ✓ `--filter=[ref]` | ✓ `nx affected` | — | ✓ `--affected` |
+| Cache explainability | — | — | — | — | — | `--summarize` | ✓ Nx Cloud UI | — | **✓ `explain` — per-component diff, local** |
+| Run report / trace | — | — | — | — | — | `--summarize` JSON | ✓ | — | **✓ `--json` report + Chrome trace** |
 | Runtime needed | none (C) | none (Rust) | none (Go) | none (Rust) | Node | Node/npm | Node | Bun | **Bun ≥ 1.4 only** |
 | Since / backing | 1988, FSF | 2016, community | ~2017, community | Rust, community | 2022, Google repo | 2021, Vercel | 2017, Nx Ltd | Oven | **2026, one maintainer** |
 
@@ -35,7 +38,6 @@ Every tool below is good at what it was built for. This page is the honest versi
 - **No remote cache.** Turborepo and Nx share build artifacts across CI machines; bundo's cache is per-machine.
 - **Skip, not restore.** A cache hit means "don't re-run" — bundo never re-materializes a deleted `dist/` from an archive the way Turbo/Nx/wireit can. Delete outputs → full re-run.
 - **No content-addressable storage, no distributed execution** (Nx Agents territory).
-- **No service readiness gating.** Dependents unblock when a service *spawns*, not when it's *ready* — wireit's `readyWhen.lineMatches` has no bundo equivalent yet. Gate manually if startup order matters.
 - **Bun ≥ 1.4 or nothing.** No Node, no Deno. Make/just/Task/mise are single binaries that run anywhere.
 - **Config is code.** `do.ts` is arbitrary TypeScript executed on load — maximum power, but external tools can't statically analyze your graph the way they can a YAML/JSON file.
 - **Young.** First released 2026, single maintainer, no plugin ecosystem. The tools above have years of production mileage.
@@ -47,7 +49,7 @@ Every tool below is good at what it was built for. This page is the honest versi
 - **Nx** — a large enterprise monorepo wanting plugins, code generators, and distributed task execution.
 - **just / Make** — you need a runtime-independent binary (polyglot repos, machines without JS runtimes). `just` also catches unknown recipes before running.
 - **mise** — you want task running *plus* tool-version management in one Rust binary, without adopting Bun.
-- **wireit** — you're committed to Node and need artifact-restoring cache or service readiness gating.
+- **wireit** — you're committed to Node and need an artifact-restoring cache.
 - **plain `bun run`** — a handful of scripts with no dependency graph; `--filter` already runs package scripts in parallel.
 
 ## Choose bundo when…

@@ -3,6 +3,18 @@
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
 import { EXIT } from "~/core/errors";
+import type { DepEdge } from "~/core/model";
+
+function edgeLabel(edge: DepEdge): string | undefined {
+	const parts: string[] = [];
+	if (edge.condition !== undefined) {
+		parts.push(typeof edge.condition === "string" ? `if ${edge.condition}` : "if <fn>");
+	}
+	if (edge.optional) {
+		parts.push("optional");
+	}
+	return parts.length > 0 ? parts.join(", ") : undefined;
+}
 
 export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<number> {
 	const project = await loadProjectFromCwd(flags.filter);
@@ -16,10 +28,20 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 				{
 					nodes: tasks.map((t) => t.name),
 					edges: tasks.flatMap((t) =>
-						t.deps.map((dep) => [
-							dep,
-							t.name,
-						]),
+						t.depEdges.map((edge) => ({
+							from: edge.task,
+							to: t.name,
+							...(edge.condition !== undefined
+								? {
+										if: typeof edge.condition === "string" ? edge.condition : "<fn>",
+									}
+								: {}),
+							...(edge.optional
+								? {
+										optional: true,
+									}
+								: {}),
+						})),
 					),
 				},
 				null,
@@ -36,8 +58,10 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 		lines.push("  rankdir=LR;");
 		for (const task of tasks) {
 			lines.push(`  ${id(task.name)} [label="${task.name}"${task.persistent ? ", shape=box" : ""}];`);
-			for (const dep of task.deps) {
-				lines.push(`  ${id(dep)} -> ${id(task.name)};`);
+			for (const edge of task.depEdges) {
+				const label = edgeLabel(edge);
+				const attrs = label !== undefined ? ` [style=dashed, label="${label}"]` : "";
+				lines.push(`  ${id(edge.task)} -> ${id(task.name)}${attrs};`);
 			}
 		}
 		lines.push("}");
@@ -45,11 +69,13 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 		lines.push("flowchart LR");
 		for (const task of tasks) {
 			const label = task.persistent ? `${id(task.name)}[["${task.name}"]]` : `${id(task.name)}["${task.name}"]`;
-			if (task.deps.length === 0) {
+			if (task.depEdges.length === 0) {
 				lines.push(`  ${label}`);
 			}
-			for (const dep of task.deps) {
-				lines.push(`  ${id(dep)} --> ${label}`);
+			for (const edge of task.depEdges) {
+				const note = edgeLabel(edge);
+				const arrow = note !== undefined ? `-.->|${note}|` : "-->";
+				lines.push(`  ${id(edge.task)} ${arrow} ${label}`);
 			}
 		}
 	}

@@ -17,6 +17,7 @@ export type BundoErrorCode =
 	| "cycle"
 	| "env-invalid"
 	| "task-failed"
+	| "git"
 	| "interrupted";
 
 const EXIT_BY_CODE: Record<BundoErrorCode, ExitCode> = {
@@ -27,6 +28,7 @@ const EXIT_BY_CODE: Record<BundoErrorCode, ExitCode> = {
 	cycle: EXIT.config,
 	"env-invalid": EXIT.config,
 	"task-failed": EXIT.taskFailure,
+	git: EXIT.usage,
 	interrupted: EXIT.interrupted,
 };
 

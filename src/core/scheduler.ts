@@ -10,14 +10,21 @@ export interface TaskResult {
 	name: string;
 	status: "ok" | "failed" | "aborted" | "skipped";
 	durationMs: number;
+	/** Monotonic (performance.now) run-relative timestamps; absent when never started. */
+	startedAt?: number;
+	endedAt?: number;
 	/** Present for failed tasks. */
 	error?: string;
 	/** True when a cache hit skipped execution (M5). */
 	cached?: boolean;
+	/** Total attempts made (present when a retry policy kicked in, i.e. > 1). */
+	attempts?: number;
+	/** JSON data output of the task's run() (replayed from cache on hits). */
+	output?: unknown;
 }
 
 export interface StartedTask {
-	/** Resolves when dependents may start (spawn for services, completion otherwise). */
+	/** Resolves when dependents may start (readiness for services, completion otherwise). */
 	unblocked: Promise<void>;
 	/** Final outcome. For services this resolves only when the service exits. */
 	result: Promise<TaskResult>;
@@ -98,17 +105,37 @@ export async function schedule(opts: ScheduleOptions): Promise<ScheduleOutcome> 
 
 		const tracked = (async () => {
 			if (task.persistent) {
-				await started.unblocked;
-				services.set(name, {
-					result: started.result,
-					stop: started.stop ?? (async () => {}),
-				});
-				results.set(name, {
-					name,
-					status: "ok",
-					durationMs: 0,
-				});
-				onSettled(name, true);
+				// Readiness races the service exiting: a service that dies (or
+				// times out its probe) before becoming ready fails its dependents.
+				const startedAt = performance.now();
+				const winner = await Promise.race([
+					started.unblocked.then(() => "ready" as const),
+					started.result,
+				]);
+				if (winner === "ready") {
+					services.set(name, {
+						result: started.result,
+						stop: started.stop ?? (async () => {}),
+					});
+					results.set(name, {
+						name,
+						status: "ok",
+						durationMs: Math.round(performance.now() - startedAt),
+						startedAt,
+					});
+					onSettled(name, true);
+				} else {
+					const failed: TaskResult =
+						winner.status === "ok"
+							? {
+									...winner,
+									status: "failed",
+									error: `service "${name}" exited before becoming ready`,
+								}
+							: winner;
+					results.set(name, failed);
+					onSettled(name, false);
+				}
 			} else {
 				const result = await started.result;
 				results.set(name, result);

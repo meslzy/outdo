@@ -14,6 +14,8 @@ export interface CtxInputs {
 	args: Record<string, string | boolean | undefined>;
 	rest: string[];
 	signal: AbortSignal;
+	/** Data outputs of the task's dependencies (their run() return values). */
+	depsData: Readonly<Record<string, unknown>>;
 }
 
 /** A Bun Shell facade bound to the task's cwd and resolved env. */
@@ -55,11 +57,12 @@ export function makeTaskLogger(name: string): TaskLogger {
 	};
 }
 
-export function buildCtx(task: Task, inputs: CtxInputs): TaskCtx<unknown, unknown> {
+export function buildCtx(task: Task, inputs: CtxInputs): TaskCtx<unknown, unknown, Readonly<Record<string, unknown>>> {
 	return {
 		$: makeTaskShell(task.cwd, inputs.shellEnv),
 		env: inputs.env,
 		args: inputs.args,
+		deps: inputs.depsData,
 		rest: inputs.rest,
 		signal: inputs.signal,
 		log: makeTaskLogger(task.name),
@@ -68,13 +71,42 @@ export function buildCtx(task: Task, inputs: CtxInputs): TaskCtx<unknown, unknow
 	};
 }
 
-/** Run one task in this process. Throws BundoError("task-failed") on failure. */
-export async function runTaskInProcess(task: Task, ctx: TaskCtx<unknown, unknown>): Promise<void> {
-	if (task.run === undefined) {
-		return; // aggregation-only task
+/**
+ * Normalize a run() return value into the task's data output. JSON-only,
+ * uniformly across backends: an in-process value must behave exactly like one
+ * that crossed IPC or was replayed from the cache manifest.
+ */
+export function normalizeOutput(task: Task, value: unknown): unknown {
+	if (value === undefined) {
+		return undefined;
 	}
+	let text: string | undefined;
 	try {
-		await task.run(ctx);
+		text = JSON.stringify(value);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		throw new BundoError("task-failed", `Task "${task.name}" returned a non-JSON-serializable output: ${message}`, {
+			task: task.name,
+		});
+	}
+	// Functions and symbols stringify to undefined — treat as "no output".
+	return text === undefined ? undefined : (JSON.parse(text) as unknown);
+}
+
+/**
+ * Run one task in this process. Returns the task's JSON-normalized data
+ * output. Throws BundoError("task-failed") on failure.
+ */
+export async function runTaskInProcess(
+	task: Task,
+	ctx: TaskCtx<unknown, unknown, Readonly<Record<string, unknown>>>,
+): Promise<unknown> {
+	if (task.run === undefined) {
+		return undefined; // aggregation-only task
+	}
+	let value: unknown;
+	try {
+		value = await task.run(ctx);
 	} catch (error) {
 		if (error instanceof BundoError) {
 			throw error;
@@ -85,4 +117,5 @@ export async function runTaskInProcess(task: Task, ctx: TaskCtx<unknown, unknown
 			cause: message,
 		});
 	}
+	return normalizeOutput(task, value);
 }

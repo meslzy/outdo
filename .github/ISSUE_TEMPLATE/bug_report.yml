@@ -1,0 +1,58 @@
+name: Bug report
+description: Something bundo does wrong
+labels: [bug]
+body:
+  - type: input
+    id: bundo-version
+    attributes:
+      label: bundo version
+      placeholder: "0.0.1"
+    validations:
+      required: true
+  - type: input
+    id: bun-version
+    attributes:
+      label: bun --version
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal do.ts that reproduces the problem
+      description: Trim it down as far as you can — a two-task do.ts beats your whole config.
+      render: ts
+      placeholder: |
+        import { defineTasks } from "bundo";
+
+        export default defineTasks({
+          build: { run: async ({ $ }) => { await $`echo hi`; } },
+        });
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Command run, expected vs actual
+      placeholder: |
+        Ran: bundo build --json
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug output
+      description: Re-run with `BUNDO_LOG=debug` and paste the output.
+      render: shell

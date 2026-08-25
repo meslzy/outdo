@@ -1,7 +1,57 @@
 /** Pure DAG utilities over the normalized task map. */
 
 import { BundoError } from "~/core/errors";
-import type { Task } from "~/core/model";
+import type { DepEdge, Task } from "~/core/model";
+
+const FALSY_CONDITION_VALUES = new Set([
+	"",
+	"0",
+	"false",
+]);
+
+/** Whether a dependency edge is active under the resolved env. May throw (predicates). */
+export function edgeActive(edge: DepEdge, env: Record<string, string | undefined>): boolean {
+	if (edge.condition === undefined) {
+		return true;
+	}
+	if (typeof edge.condition === "string") {
+		const value = env[edge.condition];
+		return value !== undefined && !FALSY_CONDITION_VALUES.has(value.toLowerCase());
+	}
+	return edge.condition(env) === true;
+}
+
+/**
+ * Filter every task's `deps` down to its active edges. Evaluated once per
+ * invocation, after the dotenv cascade is resolved. `depEdges` (the declared
+ * set) is left untouched for graph rendering. Cycles are validated over the
+ * declared edges at load time, so conditions can never mask a cycle error.
+ */
+export function applyConditions(
+	tasks: ReadonlyMap<string, Task>,
+	env: Record<string, string | undefined>,
+): Map<string, Task> {
+	const out = new Map<string, Task>();
+	for (const [name, task] of tasks) {
+		if (task.depEdges.every((edge) => edge.condition === undefined)) {
+			out.set(name, task);
+			continue;
+		}
+		const active = task.depEdges.filter((edge) => {
+			try {
+				return edgeActive(edge, env);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				throw new BundoError("config-invalid", `Task "${name}": condition on dep "${edge.task}" threw: ${message}`);
+			}
+		});
+		out.set(name, {
+			...task,
+			deps: active.map((edge) => edge.task),
+		});
+	}
+	return out;
+}
 
 /** Throws with the cycle path if the dependency graph has a cycle. */
 export function assertAcyclic(tasks: ReadonlyMap<string, Task>): void {

@@ -6,7 +6,7 @@
 
 import { relative } from "node:path";
 import type { GlobalFlags } from "~/cli/parse";
-import { makeStart, printSummary, type SharedRunState } from "~/cli/run";
+import { makeStart, type SharedRunState } from "~/cli/run";
 import { EXIT } from "~/core/errors";
 import { compile, type GlobSet, matches, staticRoots } from "~/core/globs";
 import { topoOrder } from "~/core/graph";
@@ -14,6 +14,7 @@ import { Lifecycle } from "~/core/lifecycle";
 import { dim, yellow } from "~/core/logger";
 import type { Task } from "~/core/model";
 import { OutputMultiplexer } from "~/core/output";
+import { buildReport, formatSummary } from "~/core/report";
 import { type ServiceHandle, schedule } from "~/core/scheduler";
 import { startWatcher, type WatchTarget } from "~/core/watch";
 
@@ -120,10 +121,18 @@ export async function runWatch(state: SharedRunState, flags: GlobalFlags): Promi
 	let interrupted = false;
 	let wake: (() => void) | undefined;
 
+	const byName = new Map(
+		state.planned.map((t) => [
+			t.name,
+			t,
+		]),
+	);
 	const runNames = async (names: readonly string[]): Promise<void> => {
 		running = true;
 		currentLifecycle = new Lifecycle();
 		const lifecycle = currentLifecycle;
+		const runStart = performance.now();
+		const wallStart = Date.now();
 		const outcome = await schedule({
 			tasks: state.project.tasks,
 			planned: names,
@@ -143,7 +152,15 @@ export async function runWatch(state: SharedRunState, flags: GlobalFlags): Promi
 				}
 			});
 		}
-		printSummary(outcome.results);
+		const report = buildReport({
+			planned: names.map((name) => byName.get(name) as Task),
+			results: outcome.results,
+			services: new Set(outcome.services.keys()),
+			runStart,
+			runEnd: performance.now(),
+			wallStart,
+		});
+		console.error(formatSummary(report));
 		running = false;
 	};
 

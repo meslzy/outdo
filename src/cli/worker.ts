@@ -15,6 +15,7 @@ interface RunMessage {
 	shellEnv: Record<string, string | undefined>;
 	args: Record<string, string | boolean | undefined>;
 	rest: string[];
+	depsData: Record<string, unknown>;
 }
 
 interface AbortMessage {
@@ -48,11 +49,17 @@ export async function workerCommand(): Promise<number> {
 						args: message.args,
 						rest: message.rest,
 						signal: aborter.signal,
+						depsData: message.depsData ?? {},
 					});
-					await runTaskInProcess(task, ctx);
+					const output = await runTaskInProcess(task, ctx);
 					process.send?.({
 						type: "result",
 						ok: true,
+						...(output === undefined
+							? {}
+							: {
+									output,
+								}),
 					});
 					resolve(0);
 				} catch (error) {

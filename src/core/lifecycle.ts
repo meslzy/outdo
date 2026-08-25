@@ -20,10 +20,16 @@ export interface ManagedChild {
 
 export class Lifecycle {
 	readonly #children = new Set<ManagedChild>();
+	readonly #aborter = new AbortController();
 	#shuttingDown = false;
 
 	get shuttingDown(): boolean {
 		return this.#shuttingDown;
+	}
+
+	/** Aborted the moment shutdown/killAll begins — cancels retry delays etc. */
+	get signal(): AbortSignal {
+		return this.#aborter.signal;
 	}
 
 	track(name: string, proc: Subprocess): void {
@@ -64,6 +70,7 @@ export class Lifecycle {
 	/** Graceful stop of every tracked child (used on Ctrl-C / fail-fast). */
 	async shutdown(graceMs = GRACE_MS): Promise<void> {
 		this.#shuttingDown = true;
+		this.#aborter.abort();
 		await Promise.all(
 			[
 				...this.#children,
@@ -74,6 +81,7 @@ export class Lifecycle {
 	/** Immediate, non-cooperative kill of everything (second Ctrl-C). */
 	killAll(): void {
 		this.#shuttingDown = true;
+		this.#aborter.abort();
 		for (const child of this.#children) {
 			void killTree(child.proc);
 		}

@@ -24,8 +24,11 @@ A task is skipped only when **all** of these are unchanged:
 3. **Validated env output** — change `DEPLOY_URL` and the task re-runs (only for tasks with an `env` schema)
 4. **CLI args and `--` passthrough**
 5. **Dependency fingerprints** — upstream changes cascade downstream automatically
+6. **Dependency [data outputs](/guide/tasks-and-deps#task-outputs-as-data)** — a dep whose `run()` returned a different value invalidates its consumers, even when the dep itself isn't cacheable
 
 Plus: every declared `outputs` glob must still match at least one file. Delete `dist/` and the task re-runs even though inputs are unchanged.
+
+Each component is hashed **separately** and stored in the manifest, which is what lets [`bundo explain`](#why-will-this-re-run) tell you exactly which one changed.
 
 ## What it is — and isn't
 
@@ -37,11 +40,40 @@ Fingerprints live in `.bundo/cache/` next to your `do.ts`.
 Add `.bundo/` to `.gitignore` — `bundo init` does this for you. Fingerprints are per-machine state, not shared artifacts.
 :::
 
+On a hit, one thing *is* restored: the task's [data output](/guide/tasks-and-deps#task-outputs-as-data) is replayed from the manifest, so dependents keep working across cache skips.
+
+## Why will this re-run?
+
+Stop guessing — ask:
+
+```sh
+bundo explain build
+```
+
+```txt
+build — Build the project
+backend: sequential (in-process)
+
+plan (dependencies first):
+  ✓ codegen   would skip (cached)
+  ↻ build     would run — inputs changed (modified: src/app.ts)
+
+details for build:
+  deps:     codegen
+  inputs:   src/**/*.ts (14 files), tsconfig.json (1 file)
+  outputs:  dist/** (present)
+  env:      no schema
+  cache:    miss — inputs changed (modified: src/app.ts)
+```
+
+`explain` walks the plan read-only (nothing runs, nothing is written) and diagnoses each task's cache verdict by fingerprint component: `no previous run`, `inputs changed` (with the exact files), `env changed`, `args changed`, `task definition changed`, `dependency outputs changed`, `declared outputs missing`, or `--force`. Add `--json` for the machine-readable version.
+
 ## Controlling it
 
 ```sh
 bundo --force build     # ignore stored fingerprints (still records new ones)
 bundo --dry build       # shows which planned tasks would be cache-skipped
+bundo explain build     # explains *why* each task will run or skip
 ```
 
 Tasks without `inputs` never cache — they run every time. Services (`persistent: true`) never cache either.

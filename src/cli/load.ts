@@ -56,6 +56,10 @@ export async function loadProjectFromCwd(filters: readonly string[] = []): Promi
 				...task,
 				name: qualified,
 				deps: task.deps.map((dep) => `${member.name}#${dep}`),
+				depEdges: task.depEdges.map((edge) => ({
+					...edge,
+					task: `${member.name}#${edge.task}`,
+				})),
 			});
 		}
 	}
@@ -71,6 +75,7 @@ export async function loadProjectFromCwd(filters: readonly string[] = []): Promi
 		configPath: configPath ?? join(wsRoot.rootDir, "package.json"),
 		rootDir: wsRoot.rootDir,
 		tasks,
+		members,
 	};
 	assertAcyclic(project.tasks);
 	return project;

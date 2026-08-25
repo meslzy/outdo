@@ -18,6 +18,14 @@ export interface GlobalFlags {
 	force: boolean;
 	filter: string[];
 	isolate: boolean;
+	/** Git-aware task selection. `base: undefined` = auto-detect the base rev. */
+	affected:
+		| false
+		| {
+				base: string | undefined;
+		  };
+	/** Chrome trace output path, or false. */
+	profile: string | false;
 }
 
 export type Command =
@@ -50,6 +58,10 @@ export type Command =
 			task: string;
 	  }
 	| {
+			kind: "explain";
+			task: string;
+	  }
+	| {
 			kind: "help";
 	  }
 	| {
@@ -69,6 +81,7 @@ const SUBCOMMANDS = new Set([
 	"graph",
 	"init",
 	"completion",
+	"explain",
 	"__complete",
 ]);
 
@@ -135,6 +148,12 @@ const GLOBAL_OPTIONS = {
 		type: "boolean",
 		default: false,
 	},
+	affected: {
+		type: "string",
+	},
+	profile: {
+		type: "string",
+	},
 } as const;
 
 /** Global flags that consume the next token when written space-separated. */
@@ -171,6 +190,14 @@ function normalizeToken(token: string): string {
 	}
 	if (token === "--dry=json") {
 		return "--dry-json";
+	}
+	// Bare forms take no value; a base rev / path requires the `=` form so the
+	// next token (a task name) is never swallowed.
+	if (token === "--affected") {
+		return "--affected=";
+	}
+	if (token === "--profile") {
+		return "--profile=";
 	}
 	return token;
 }
@@ -307,6 +334,14 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		force: values.force === true,
 		filter: (values.filter as string[] | undefined) ?? [],
 		isolate: values.isolate === true,
+		affected:
+			values.affected === undefined
+				? false
+				: {
+						base: values.affected === "" ? undefined : (values.affected as string),
+					},
+		profile:
+			values.profile === undefined ? false : values.profile === "" ? ".bundo/trace.json" : (values.profile as string),
 	};
 
 	const printEnv = values["print-env"] as string | undefined;
@@ -349,6 +384,14 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		command = {
 			kind: "completion",
 			shell: positionals[0],
+		};
+	} else if (first === "explain") {
+		if (positionals.length !== 1) {
+			throw new BundoError("usage", "explain requires exactly one task name.");
+		}
+		command = {
+			kind: "explain",
+			task: positionals[0] as string,
 		};
 	} else {
 		// Run mode: leading bare words are task names; the remainder (flags and
@@ -402,5 +445,7 @@ function defaultsOnly(): GlobalFlags {
 		force: false,
 		filter: [],
 		isolate: false,
+		affected: false,
+		profile: false,
 	};
 }

@@ -1,10 +1,18 @@
 {
 	"name": "bundo",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"description": "TypeScript-native task runner for Bun. Tasks live in a typed do.ts; powered by Bun Shell.",
 	"type": "module",
 	"license": "MIT",
 	"author": "meslzy <i@meslzy.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/meslzy/bundo.git"
+	},
+	"bugs": {
+		"url": "https://github.com/meslzy/bundo/issues"
+	},
+	"homepage": "https://meslzy.github.io/bundo/",
 	"bin": {
 		"bundo": "./dist/cli.js"
 	},
@@ -44,6 +52,7 @@
 		"@types/bun": "latest",
 		"typescript": "^5.9.0",
 		"vitepress": "^1.6.4",
+		"vitepress-plugin-llms": "^1.13.5",
 		"zod": "^4.0.0"
 	}
 }
