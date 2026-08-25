@@ -28,6 +28,8 @@ jobs:
       # VitePress runs on Node (never `bunx --bun vitepress`); bun is the installer/runner.
       - run: bun run docs:build
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
