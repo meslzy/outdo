@@ -64,7 +64,7 @@ export default defineTasks({
 });
 ```
 
-```
+```txt
 bundo                      # gorgeous grouped task list
 bundo build                # run a task + its dependency DAG
 bundo deploy -d            # typed per-task flags
@@ -136,7 +136,7 @@ run: async ({ $, env, args, rest, signal, log, cwd, name }) => { ... }
 
 Cascade (lowest → highest), resolved from the `do.ts` directory, matching Bun's own loader byte-for-byte:
 
-```
+```txt
 .env → .env.{NODE_ENV} → .env.local (skipped when NODE_ENV=test) → .env.{NODE_ENV}.local → process env
 ```
 
@@ -176,7 +176,7 @@ Member deps stay file-local; each member task runs in its own directory. Inside 
 
 ## CLI reference
 
-```
+```txt
 bundo                        List tasks, grouped
 bundo <task> [flags] [-- args]
 bundo <t1> <t2>              Multiple tasks
