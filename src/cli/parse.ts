@@ -1,0 +1,393 @@
+/** Global argv parsing. Task-specific flags are re-parsed later by argspec. */
+
+import { parseArgs } from "node:util";
+import { BundoError } from "~/core/errors";
+import type { ColorMode } from "~/core/logger";
+
+export interface GlobalFlags {
+	json: boolean;
+	help: boolean;
+	version: boolean;
+	color: ColorMode;
+	watch: boolean;
+	concurrency: number | undefined;
+	continueOnError: boolean;
+	logOrder: "stream" | "grouped" | "auto";
+	outputLogs: "full" | "errors-only" | "none";
+	dry: false | "text" | "json";
+	force: boolean;
+	filter: string[];
+	isolate: boolean;
+}
+
+export type Command =
+	| {
+			kind: "list";
+	  }
+	| {
+			kind: "run";
+			tasks: string[];
+			taskArgv: string[];
+			rest: string[];
+	  }
+	| {
+			kind: "graph";
+			dot: boolean;
+	  }
+	| {
+			kind: "init";
+	  }
+	| {
+			kind: "completion";
+			shell: string | undefined;
+	  }
+	| {
+			kind: "complete";
+			words: string[];
+	  }
+	| {
+			kind: "print-env";
+			task: string;
+	  }
+	| {
+			kind: "help";
+	  }
+	| {
+			kind: "version";
+	  };
+
+export interface ParsedCli {
+	command: Command;
+	flags: GlobalFlags;
+}
+
+const SUBCOMMANDS = new Set([
+	"ls",
+	"graph",
+	"init",
+	"completion",
+	"__complete",
+]);
+
+/** Global options, shared by every command. */
+const GLOBAL_OPTIONS = {
+	json: {
+		type: "boolean",
+		default: false,
+	},
+	help: {
+		type: "boolean",
+		short: "h",
+		default: false,
+	},
+	version: {
+		type: "boolean",
+		short: "V",
+		default: false,
+	},
+	color: {
+		type: "string",
+	},
+	watch: {
+		type: "boolean",
+		short: "w",
+		default: false,
+	},
+	concurrency: {
+		type: "string",
+		short: "j",
+	},
+	continue: {
+		type: "boolean",
+		default: false,
+	},
+	"log-order": {
+		type: "string",
+	},
+	"output-logs": {
+		type: "string",
+	},
+	dry: {
+		type: "boolean",
+		default: false,
+	},
+	"dry-json": {
+		type: "boolean",
+		default: false,
+	},
+	force: {
+		type: "boolean",
+		short: "f",
+		default: false,
+	},
+	filter: {
+		type: "string",
+		short: "F",
+		multiple: true,
+	},
+	"print-env": {
+		type: "string",
+	},
+	isolate: {
+		type: "boolean",
+		default: false,
+	},
+} as const;
+
+/** Global flags that consume the next token when written space-separated. */
+const VALUE_FLAGS = new Set([
+	"--color",
+	"--concurrency",
+	"-j",
+	"--log-order",
+	"--output-logs",
+	"--filter",
+	"-F",
+	"--print-env",
+]);
+
+const COMMAND_OPTIONS: Record<
+	string,
+	Record<
+		string,
+		{
+			type: "boolean" | "string";
+		}
+	>
+> = {
+	graph: {
+		dot: {
+			type: "boolean",
+		},
+	},
+};
+
+function normalizeToken(token: string): string {
+	if (token === "--no-color") {
+		return "--color=never";
+	}
+	if (token === "--dry=json") {
+		return "--dry-json";
+	}
+	return token;
+}
+
+function oneOf<T extends string>(value: string | undefined, allowed: readonly T[], flag: string, fallback: T): T {
+	if (value === undefined) {
+		return fallback;
+	}
+	if ((allowed as readonly string[]).includes(value)) {
+		return value as T;
+	}
+	throw new BundoError("usage", `Invalid value "${value}" for ${flag}. Expected one of: ${allowed.join(", ")}.`);
+}
+
+export function parseCli(argv: readonly string[]): ParsedCli {
+	// 1. Split off everything after `--` (raw passthrough for the task).
+	const terminatorIdx = argv.indexOf("--");
+	const rest = terminatorIdx === -1 ? [] : argv.slice(terminatorIdx + 1).map(String);
+	const head = (terminatorIdx === -1 ? argv : argv.slice(0, terminatorIdx)).map(normalizeToken);
+
+	// `__complete` receives the raw shell words verbatim — bypass parsing.
+	if (head[0] === "__complete") {
+		return {
+			command: {
+				kind: "complete",
+				words: [
+					...head.slice(1),
+					...(terminatorIdx === -1
+						? []
+						: [
+								"--",
+								...rest,
+							]),
+				],
+			},
+			flags: defaultsOnly(),
+		};
+	}
+
+	// 2. Find the first positional; global flags must precede it.
+	let firstPos = head.length;
+	for (let i = 0; i < head.length; i++) {
+		const token = head[i] as string;
+		if (token.startsWith("-") && token !== "-") {
+			if (!token.includes("=") && VALUE_FLAGS.has(token)) {
+				i++; // skip this flag's value
+			}
+			continue;
+		}
+		firstPos = i;
+		break;
+	}
+	const globalArgv = head.slice(0, firstPos);
+	const tail = head.slice(firstPos);
+	const first = tail[0];
+
+	// 3. Subcommands parse their own tail flags strictly (plus globals anywhere).
+	const isSub = first !== undefined && SUBCOMMANDS.has(first);
+	const options = isSub
+		? {
+				...GLOBAL_OPTIONS,
+				...COMMAND_OPTIONS[first as string],
+			}
+		: GLOBAL_OPTIONS;
+	const parseInput = isSub
+		? [
+				...globalArgv,
+				...tail.slice(1),
+			]
+		: globalArgv;
+
+	let values: Record<string, unknown>;
+	let positionals: string[];
+	try {
+		({ values, positionals } = parseArgs({
+			args: parseInput,
+			options: options as NonNullable<Parameters<typeof parseArgs>[0]>["options"],
+			strict: true,
+			allowPositionals: true,
+		}));
+	} catch (error) {
+		const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
+		throw new BundoError("usage", `${message} Run "bundo --help" for usage.`);
+	}
+
+	const flags: GlobalFlags = {
+		json: values.json === true,
+		help: values.help === true,
+		version: values.version === true,
+		color: oneOf(
+			values.color as string | undefined,
+			[
+				"auto",
+				"always",
+				"never",
+			],
+			"--color",
+			"auto",
+		),
+		watch: values.watch === true,
+		concurrency: parseConcurrency(values.concurrency as string | undefined),
+		continueOnError: values.continue === true,
+		logOrder: oneOf(
+			values["log-order"] as string | undefined,
+			[
+				"stream",
+				"grouped",
+				"auto",
+			],
+			"--log-order",
+			"auto",
+		),
+		outputLogs: oneOf(
+			values["output-logs"] as string | undefined,
+			[
+				"full",
+				"errors-only",
+				"none",
+			],
+			"--output-logs",
+			"full",
+		),
+		dry: values["dry-json"] === true ? "json" : values.dry === true ? "text" : false,
+		force: values.force === true,
+		filter: (values.filter as string[] | undefined) ?? [],
+		isolate: values.isolate === true,
+	};
+
+	const printEnv = values["print-env"] as string | undefined;
+
+	let command: Command;
+	if (flags.help) {
+		command = {
+			kind: "help",
+		};
+	} else if (flags.version) {
+		command = {
+			kind: "version",
+		};
+	} else if (printEnv !== undefined) {
+		if (printEnv === "") {
+			throw new BundoError("usage", "--print-env requires a task name.");
+		}
+		command = {
+			kind: "print-env",
+			task: printEnv,
+		};
+	} else if (first === undefined) {
+		command = {
+			kind: "list",
+		};
+	} else if (first === "ls") {
+		command = {
+			kind: "list",
+		};
+	} else if (first === "graph") {
+		command = {
+			kind: "graph",
+			dot: values.dot === true,
+		};
+	} else if (first === "init") {
+		command = {
+			kind: "init",
+		};
+	} else if (first === "completion") {
+		command = {
+			kind: "completion",
+			shell: positionals[0],
+		};
+	} else {
+		// Run mode: leading bare words are task names; the remainder (flags and
+		// their values) belongs to the requested task and is re-parsed later.
+		const tasks: string[] = [];
+		let i = 0;
+		for (; i < tail.length; i++) {
+			const token = tail[i] as string;
+			if (token.startsWith("-") && token !== "-") {
+				break;
+			}
+			tasks.push(token);
+		}
+		command = {
+			kind: "run",
+			tasks,
+			taskArgv: tail.slice(i),
+			rest,
+		};
+	}
+
+	return {
+		command,
+		flags,
+	};
+}
+
+function parseConcurrency(value: string | undefined): number | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const n = Number.parseInt(value, 10);
+	if (!Number.isFinite(n) || n < 1 || String(n) !== value.trim()) {
+		throw new BundoError("usage", `Invalid --concurrency "${value}" — expected a positive integer.`);
+	}
+	return n;
+}
+
+function defaultsOnly(): GlobalFlags {
+	return {
+		json: false,
+		help: false,
+		version: false,
+		color: "auto",
+		watch: false,
+		concurrency: undefined,
+		continueOnError: false,
+		logOrder: "auto",
+		outputLogs: "full",
+		dry: false,
+		force: false,
+		filter: [],
+		isolate: false,
+	};
+}
