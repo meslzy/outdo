@@ -1,0 +1,22 @@
+name: Feature request
+description: Something outdo should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: The workflow you have and where it hurts — not just the feature you want.
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed API sketch
+      description: What would the do.ts or CLI surface look like? Rough is fine.
+      render: ts
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried, or why existing features (deps, args, env, --filter, --affected…) don't cover it.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://meslzy.github.io/outdo/
+    about: Guides and reference for every feature.
+  - name: Questions & ideas
+    url: https://github.com/meslzy/outdo/discussions
+    about: Ask questions or float ideas before opening an issue.

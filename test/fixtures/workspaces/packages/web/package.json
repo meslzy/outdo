@@ -1,0 +1,6 @@
+{
+	"name": "web",
+	"peerDependencies": {
+		"lib": "workspace:*"
+	}
+}

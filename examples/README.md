@@ -1,0 +1,11 @@
+# outdo examples
+
+- `single-repo/do.ts` — a full-featured single-project task file: docker infra,
+  env-validated backup/release tasks, typed CLI flags, cached builds, a
+  persistent dev server, and `--` passthrough to tests.
+- `monorepo/` — a Bun workspace: root `do.ts` + per-package `do.ts` files.
+  From `monorepo/`, `outdo build` fans out to `api#build` and `web#build`;
+  `outdo -F ...api build` builds api plus what it depends on.
+
+These reference `import { ... } from "@meslzy/outdo"` — inside this repository they are
+documentation only (not typechecked against the local source).

@@ -1,0 +1,6 @@
+{
+	"name": "ws-root",
+	"workspaces": [
+		"packages/*"
+	]
+}

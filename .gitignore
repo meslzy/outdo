@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.outdo/
+coverage/
+*.tsbuildinfo
+.env.local
+.env.*.local
+!test/fixtures/**/.env.local
+!test/fixtures/**/.env.*.local
+*.tgz
+docs/.vitepress/dist/
+docs/.vitepress/cache/

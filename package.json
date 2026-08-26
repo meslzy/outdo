@@ -1,0 +1,60 @@
+{
+	"name": "@meslzy/outdo",
+	"version": "0.0.1",
+	"description": "TypeScript-native task runner for Bun. Tasks live in a typed do.ts; powered by Bun Shell.",
+	"type": "module",
+	"license": "MIT",
+	"author": "meslzy <i@meslzy.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/meslzy/outdo.git"
+	},
+	"bugs": {
+		"url": "https://github.com/meslzy/outdo/issues"
+	},
+	"homepage": "https://meslzy.github.io/outdo/",
+	"bin": {
+		"outdo": "./dist/cli.js"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"bun": ">=1.4.0"
+	},
+	"keywords": [
+		"bun",
+		"task-runner",
+		"make",
+		"typescript",
+		"monorepo",
+		"cli"
+	],
+	"scripts": {
+		"outdo": "bun src/cli.ts",
+		"test": "bun test --parallel",
+		"coverage": "bun test --coverage",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome check --write .",
+		"build": "bun scripts/build.ts",
+		"prepublishOnly": "bun scripts/build.ts",
+		"docs:dev": "vitepress dev docs",
+		"docs:build": "vitepress build docs",
+		"docs:preview": "vitepress preview docs"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.10",
+		"@types/bun": "latest",
+		"typescript": "^5.9.0",
+		"vitepress": "^1.6.4",
+		"vitepress-plugin-llms": "^1.13.5",
+		"zod": "^4.0.0"
+	}
+}
