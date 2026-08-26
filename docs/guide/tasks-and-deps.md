@@ -3,7 +3,7 @@
 Your entire task graph is one default export from `do.ts`:
 
 ```ts
-import { defineTasks, task } from "bundo";
+import { defineTasks, task } from "outdo";
 
 export default defineTasks({
 	"docker:up": {
@@ -67,7 +67,7 @@ The same check applies at runtime as a safety net (exit code 3, same suggestion)
 **The `task()` builder** unlocks two extra typed fields — [`env`](/guide/env) (a validation schema) and [`args`](/guide/args-and-flags) (CLI flags) — and types the context from them:
 
 ```ts
-import { defineTasks, task } from "bundo";
+import { defineTasks, task } from "outdo";
 import { z } from "zod";
 
 export default defineTasks({
@@ -96,7 +96,7 @@ Declaring `env` or `args` on a plain object is a type error — the builder is w
 A dep entry can be an object instead of a plain name:
 
 ```ts
-import { defineTasks, optional } from "bundo";
+import { defineTasks, optional } from "outdo";
 
 export default defineTasks({
 	build: { run: async ({ $ }) => $`bun run build` },
@@ -116,14 +116,14 @@ export default defineTasks({
 - **`if: (env) => boolean`** — a predicate over the resolved env, for anything beyond truthiness (`if: (env) => env.CI === undefined` inverts).
 - **`optional(name)`** — soft dependency: silently dropped when the task doesn't exist in this `do.ts`. Useful for shared task presets across workspace members. When the task *does* exist, it's a normal hard edge.
 
-Conditions are evaluated once per invocation, at plan time. An inactive dep is left out of the plan entirely (it won't run at all unless something else needs it), and `bundo --dry=json` lists it under `inactiveDeps`. Cycles are checked over the *declared* edges, so a cycle hidden behind an inactive condition is still a config error — deterministically, regardless of env.
+Conditions are evaluated once per invocation, at plan time. An inactive dep is left out of the plan entirely (it won't run at all unless something else needs it), and `outdo --dry=json` lists it under `inactiveDeps`. Cycles are checked over the *declared* edges, so a cycle hidden behind an inactive condition is still a config error — deterministically, regardless of env.
 
 ## Task outputs as data
 
 A task's `run()` return value is its **data output**. Dependents read it from `ctx.deps`:
 
 ```ts
-import { defineTasks, from, task } from "bundo";
+import { defineTasks, from, task } from "outdo";
 
 const version = task({
 	inputs: ["package.json"],
@@ -160,7 +160,7 @@ check: {
 },
 ```
 
-`bundo check` runs all three — [in parallel](/guide/execution), because they don't depend on each other.
+`outdo check` runs all three — [in parallel](/guide/execution), because they don't depend on each other.
 
 ## The Bun Shell
 

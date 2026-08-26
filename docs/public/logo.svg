@@ -4,10 +4,10 @@
 	width="64"
 	xmlns="http://www.w3.org/2000/svg"
 >
-	<title>bundo</title>
+	<title>outdo</title>
 	<defs>
 		<linearGradient
-			id="bundo-g"
+			id="outdo-g"
 			x1="0"
 			x2="1"
 			y1="0"
@@ -31,7 +31,7 @@
 		fill="#151312"
 		height="60"
 		rx="14"
-		stroke="url(#bundo-g)"
+		stroke="url(#outdo-g)"
 		stroke-width="3"
 		width="60"
 		x="2"
@@ -39,6 +39,6 @@
 	/>
 	<path
 		d="M24 19 L46 32 L24 45 Z"
-		fill="url(#bundo-g)"
+		fill="url(#outdo-g)"
 	/>
 </svg>

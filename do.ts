@@ -1,4 +1,4 @@
-/** bundo builds itself with bundo. */
+/** outdo builds itself with outdo. */
 
 import { defineTasks } from "./src/index";
 

@@ -1,5 +1,5 @@
 {
-	"name": "bundo",
+	"name": "outdo",
 	"version": "0.0.1",
 	"description": "TypeScript-native task runner for Bun. Tasks live in a typed do.ts; powered by Bun Shell.",
 	"type": "module",
@@ -7,14 +7,14 @@
 	"author": "meslzy <i@meslzy.com>",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/meslzy/bundo.git"
+		"url": "git+https://github.com/meslzy/outdo.git"
 	},
 	"bugs": {
-		"url": "https://github.com/meslzy/bundo/issues"
+		"url": "https://github.com/meslzy/outdo/issues"
 	},
-	"homepage": "https://meslzy.github.io/bundo/",
+	"homepage": "https://meslzy.github.io/outdo/",
 	"bin": {
-		"bundo": "./dist/cli.js"
+		"outdo": "./dist/cli.js"
 	},
 	"exports": {
 		".": {
@@ -37,7 +37,7 @@
 		"cli"
 	],
 	"scripts": {
-		"bundo": "bun src/cli.ts",
+		"outdo": "bun src/cli.ts",
 		"test": "bun test --parallel",
 		"coverage": "bun test --coverage",
 		"typecheck": "tsc --noEmit",

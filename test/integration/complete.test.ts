@@ -5,7 +5,7 @@ import { CLI } from "./helpers";
 const FIXTURE = join(import.meta.dir, "..", "fixtures", "basic");
 
 /**
- * Shells invoke `bundo __complete ...` with no other argv — the endpoint is
+ * Shells invoke `outdo __complete ...` with no other argv — the endpoint is
  * matched at argv[0], so this helper deliberately skips runCli's
  * `--color=never` prefix.
  */

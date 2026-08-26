@@ -4,7 +4,7 @@ import { runCli } from "./helpers";
 
 const FIXTURES = join(import.meta.dir, "..", "fixtures");
 
-describe("bundo list", () => {
+describe("outdo list", () => {
 	test("renders the grouped task list", async () => {
 		const { exitCode, stdout } = await runCli(join(FIXTURES, "basic"), []);
 		expect(exitCode).toBe(0);
@@ -49,7 +49,7 @@ describe("bundo list", () => {
 	test("missing do.ts exits 3 with guidance", async () => {
 		const { mkdtempSync } = await import("node:fs");
 		const { tmpdir } = await import("node:os");
-		const empty = mkdtempSync(join(tmpdir(), "bundo-empty-"));
+		const empty = mkdtempSync(join(tmpdir(), "outdo-empty-"));
 		const { exitCode, stderr } = await runCli(empty, []);
 		expect(exitCode).toBe(3);
 		expect(stderr).toContain("No do.ts found");
@@ -61,7 +61,7 @@ describe("bundo list", () => {
 		]);
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("Usage");
-		expect(stdout).toContain("bundo <task>");
+		expect(stdout).toContain("outdo <task>");
 	});
 
 	test("--version prints the package version", async () => {

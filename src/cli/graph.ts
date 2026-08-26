@@ -54,7 +54,7 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 	const id = (name: string): string => name.replaceAll(/[^A-Za-z0-9_]/g, "_");
 	const lines: string[] = [];
 	if (dot) {
-		lines.push("digraph bundo {");
+		lines.push("digraph outdo {");
 		lines.push("  rankdir=LR;");
 		for (const task of tasks) {
 			lines.push(`  ${id(task.name)} [label="${task.name}"${task.persistent ? ", shape=box" : ""}];`);

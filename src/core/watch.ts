@@ -1,6 +1,6 @@
 /**
  * File watching: fs.watch({recursive}) on static glob roots with an 80ms
- * trailing debounce and change coalescing. BUNDO_WATCH_POLL=1 (or an
+ * trailing debounce and change coalescing. OUTDO_WATCH_POLL=1 (or an
  * fs.watch failure) switches to a 500ms mtime poller — the escape hatch for
  * Docker volumes, NFS, and other event-less filesystems.
  */
@@ -16,7 +16,7 @@ export const POLL_MS = 500;
 const IGNORED = [
 	"node_modules",
 	".git",
-	".bundo",
+	".outdo",
 ];
 
 export interface Watcher {
@@ -39,10 +39,10 @@ function ignored(path: string): boolean {
 
 /**
  * Watch the targets; `onBatch` receives coalesced absolute paths. Falls back
- * to polling when fs.watch is unavailable or BUNDO_WATCH_POLL=1.
+ * to polling when fs.watch is unavailable or OUTDO_WATCH_POLL=1.
  */
 export function startWatcher(targets: readonly WatchTarget[], onBatch: (paths: Set<string>) => void): Watcher {
-	if (process.env.BUNDO_WATCH_POLL === "1") {
+	if (process.env.OUTDO_WATCH_POLL === "1") {
 		return startPoller(targets, onBatch);
 	}
 	try {

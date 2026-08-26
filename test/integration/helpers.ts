@@ -20,7 +20,7 @@ const INDEX = join(import.meta.dir, "..", "..", "src", "index.ts").replaceAll("\
  */
 export function copyFixture(fixtureName: string): string {
 	const fixture = join(import.meta.dir, "..", "fixtures", fixtureName);
-	const dir = mkdtempSync(join(tmpdir(), `bundo-${fixtureName.replaceAll(/[^a-z0-9]/gi, "-")}-`));
+	const dir = mkdtempSync(join(tmpdir(), `outdo-${fixtureName.replaceAll(/[^a-z0-9]/gi, "-")}-`));
 	cpSync(fixture, dir, {
 		recursive: true,
 	});
@@ -61,10 +61,10 @@ export async function initGit(dir: string): Promise<boolean> {
 	if (!(await git("init", "-q"))) {
 		return false;
 	}
-	await git("config", "user.email", "tests@bundo.local");
-	await git("config", "user.name", "bundo tests");
+	await git("config", "user.email", "tests@outdo.local");
+	await git("config", "user.name", "outdo tests");
 	await git("config", "commit.gpgsign", "false");
-	writeFileSync(join(dir, ".gitignore"), ".bundo/\nout/\n");
+	writeFileSync(join(dir, ".gitignore"), ".outdo/\nout/\n");
 	if (!(await git("add", "-A"))) {
 		return false;
 	}

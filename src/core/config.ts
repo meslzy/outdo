@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import type { DepEdge, Project, Task } from "~/core/model";
 import { didYouMean } from "~/core/util";
 import { workspacePatternsOf } from "~/core/workspaces";
@@ -72,7 +72,7 @@ function toStringArray(value: unknown, task: string, field: string): readonly st
 	if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
 		return value as string[];
 	}
-	throw new BundoError("config-invalid", `Task "${task}": "${field}" must be an array of strings.`);
+	throw new OutdoError("config-invalid", `Task "${task}": "${field}" must be an array of strings.`);
 }
 
 function toDepEdges(value: unknown, task: string): DepEdge[] {
@@ -80,7 +80,7 @@ function toDepEdges(value: unknown, task: string): DepEdge[] {
 		return [];
 	}
 	if (!Array.isArray(value)) {
-		throw new BundoError("config-invalid", `Task "${task}": "deps" must be an array.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "deps" must be an array.`);
 	}
 	const edges: DepEdge[] = [];
 	for (const entry of value) {
@@ -100,7 +100,7 @@ function toDepEdges(value: unknown, task: string): DepEdge[] {
 			};
 			const cond = ref.if;
 			if (cond !== undefined && typeof cond !== "string" && typeof cond !== "function") {
-				throw new BundoError(
+				throw new OutdoError(
 					"config-invalid",
 					`Task "${task}": dep "${ref.task}" has an invalid "if" — expected an env var name or a predicate.`,
 				);
@@ -112,7 +112,7 @@ function toDepEdges(value: unknown, task: string): DepEdge[] {
 			});
 			continue;
 		}
-		throw new BundoError(
+		throw new OutdoError(
 			"config-invalid",
 			`Task "${task}": deps entries must be task names or { task, if?, optional? }.`,
 		);
@@ -125,7 +125,7 @@ function toReady(value: unknown, task: string): ReadyProbe | undefined {
 		return undefined;
 	}
 	if (typeof value !== "object" || value === null) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready" must be { log | url | port, host?, timeoutMs? }.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "ready" must be { log | url | port, host?, timeoutMs? }.`);
 	}
 	const probe = value as ReadyProbe;
 	const kinds = [
@@ -134,10 +134,10 @@ function toReady(value: unknown, task: string): ReadyProbe | undefined {
 		probe.port !== undefined,
 	].filter(Boolean).length;
 	if (kinds !== 1) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready" must set exactly one of "log", "url", "port".`);
+		throw new OutdoError("config-invalid", `Task "${task}": "ready" must set exactly one of "log", "url", "port".`);
 	}
 	if (probe.log !== undefined && (typeof probe.log !== "string" || probe.log === "")) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready.log" must be a non-empty string.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "ready.log" must be a non-empty string.`);
 	}
 	if (probe.url !== undefined) {
 		let parsed: URL | undefined;
@@ -147,20 +147,20 @@ function toReady(value: unknown, task: string): ReadyProbe | undefined {
 			// handled below
 		}
 		if (parsed === undefined || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
-			throw new BundoError("config-invalid", `Task "${task}": "ready.url" must be a valid http(s) URL.`);
+			throw new OutdoError("config-invalid", `Task "${task}": "ready.url" must be a valid http(s) URL.`);
 		}
 	}
 	if (probe.port !== undefined && (!Number.isInteger(probe.port) || probe.port < 1 || probe.port > 65_535)) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready.port" must be an integer between 1 and 65535.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "ready.port" must be an integer between 1 and 65535.`);
 	}
 	if (probe.host !== undefined && probe.port === undefined) {
-		throw new BundoError("config-invalid", `Task "${task}": "ready.host" is only valid with "ready.port".`);
+		throw new OutdoError("config-invalid", `Task "${task}": "ready.host" is only valid with "ready.port".`);
 	}
 	if (
 		probe.timeoutMs !== undefined
 		&& (!Number.isFinite(probe.timeoutMs) || probe.timeoutMs <= 0 || probe.timeoutMs > MAX_TIMER_MS)
 	) {
-		throw new BundoError(
+		throw new OutdoError(
 			"config-invalid",
 			`Task "${task}": "ready.timeoutMs" must be a positive number of ms (at most ${MAX_TIMER_MS}).`,
 		);
@@ -181,25 +181,25 @@ function toRetry(value: unknown, task: string): Required<RetrySpec> | undefined 
 				? (value as RetrySpec)
 				: undefined;
 	if (spec === undefined) {
-		throw new BundoError(
+		throw new OutdoError(
 			"config-invalid",
 			`Task "${task}": "retry" must be a number or { attempts, delayMs?, backoff? }.`,
 		);
 	}
 	if (!Number.isInteger(spec.attempts) || spec.attempts < 1) {
-		throw new BundoError("config-invalid", `Task "${task}": "retry.attempts" must be an integer >= 1.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "retry.attempts" must be an integer >= 1.`);
 	}
 	if (
 		spec.delayMs !== undefined
 		&& (!Number.isFinite(spec.delayMs) || spec.delayMs < 0 || spec.delayMs > MAX_TIMER_MS)
 	) {
-		throw new BundoError(
+		throw new OutdoError(
 			"config-invalid",
 			`Task "${task}": "retry.delayMs" must be a non-negative number of ms (at most ${MAX_TIMER_MS}).`,
 		);
 	}
 	if (spec.backoff !== undefined && spec.backoff !== "fixed" && spec.backoff !== "exponential") {
-		throw new BundoError("config-invalid", `Task "${task}": "retry.backoff" must be "fixed" or "exponential".`);
+		throw new OutdoError("config-invalid", `Task "${task}": "retry.backoff" must be "fixed" or "exponential".`);
 	}
 	return {
 		attempts: spec.attempts,
@@ -213,7 +213,7 @@ function toTimeout(value: unknown, task: string): number | undefined {
 		return undefined;
 	}
 	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > MAX_TIMER_MS) {
-		throw new BundoError(
+		throw new OutdoError(
 			"config-invalid",
 			`Task "${task}": "timeoutMs" must be a positive number of ms (at most ${MAX_TIMER_MS}).`,
 		);
@@ -228,22 +228,22 @@ export async function loadProject(configPath: string): Promise<Project> {
 	try {
 		mod = (await import(pathToFileURL(absPath).href)) as Record<string, unknown>;
 	} catch (error) {
-		if (error instanceof BundoError) {
+		if (error instanceof OutdoError) {
 			throw error;
 		}
 		const message = error instanceof Error ? error.message : String(error);
-		throw new BundoError("config-invalid", `Failed to load ${absPath}:\n${message}`);
+		throw new OutdoError("config-invalid", `Failed to load ${absPath}:\n${message}`);
 	}
 	const exported = mod.default;
 	if (!isTasks(exported)) {
-		throw new BundoError("config-invalid", `${absPath} must default-export defineTasks({ ... }) from "bundo".`);
+		throw new OutdoError("config-invalid", `${absPath} must default-export defineTasks({ ... }) from "outdo".`);
 	}
 
 	const rootDir = dirname(absPath);
 	const tasks = new Map<string, Task>();
 	for (const [name, raw] of Object.entries(exported as Record<string, RawEntry>)) {
 		if (typeof raw !== "object" || raw === null) {
-			throw new BundoError("config-invalid", `Task "${name}" must be an object.`);
+			throw new OutdoError("config-invalid", `Task "${name}" must be an object.`);
 		}
 		const entry = raw as RawEntry;
 		const cwd = typeof entry.cwd === "string" ? entry.cwd : ".";
@@ -295,22 +295,22 @@ function normalizeArgs(value: unknown, task: string): Readonly<Record<string, Ar
 		return {};
 	}
 	if (typeof value !== "object" || value === null) {
-		throw new BundoError("config-invalid", `Task "${task}": "args" must be a record of flag specs.`);
+		throw new OutdoError("config-invalid", `Task "${task}": "args" must be a record of flag specs.`);
 	}
 	const out: Record<string, ArgSpec> = {};
 	for (const [flag, spec] of Object.entries(value as Record<string, unknown>)) {
 		if (typeof spec !== "object" || spec === null || !("type" in spec)) {
-			throw new BundoError(
+			throw new OutdoError(
 				"config-invalid",
 				`Task "${task}": arg "${flag}" must be { type: "string" | "boolean", ... }.`,
 			);
 		}
 		const s = spec as ArgSpec;
 		if (s.type !== "string" && s.type !== "boolean") {
-			throw new BundoError("config-invalid", `Task "${task}": arg "${flag}" has invalid type "${String(s.type)}".`);
+			throw new OutdoError("config-invalid", `Task "${task}": arg "${flag}" has invalid type "${String(s.type)}".`);
 		}
 		if (s.short !== undefined && s.short.length !== 1) {
-			throw new BundoError("config-invalid", `Task "${task}": arg "${flag}" short alias must be a single character.`);
+			throw new OutdoError("config-invalid", `Task "${task}": arg "${flag}" short alias must be a single character.`);
 		}
 		out[flag] = s;
 	}
@@ -333,7 +333,7 @@ function validate(tasks: ReadonlyMap<string, Task>, configPath: string): void {
 				continue;
 			}
 			const hint = didYouMean(edge.task, names);
-			throw new BundoError(
+			throw new OutdoError(
 				"config-invalid",
 				`Task "${task.name}" depends on unknown task "${edge.task}".${hint ? ` Did you mean "${hint}"?` : ""}`,
 				{
@@ -352,7 +352,7 @@ function validate(tasks: ReadonlyMap<string, Task>, configPath: string): void {
 			if (spec.short !== undefined) {
 				const existing = shorts.get(spec.short);
 				if (existing !== undefined) {
-					throw new BundoError(
+					throw new OutdoError(
 						"config-invalid",
 						`Task "${task.name}": flags "${existing}" and "${flag}" share the short alias "-${spec.short}".`,
 					);
@@ -362,19 +362,19 @@ function validate(tasks: ReadonlyMap<string, Task>, configPath: string): void {
 		}
 		if (task.persistent && task.outputs.length > 0) {
 			// A service never "completes", so outputs can never be fingerprinted.
-			throw new BundoError("config-invalid", `Task "${task.name}" is persistent and cannot declare "outputs".`);
+			throw new OutdoError("config-invalid", `Task "${task.name}" is persistent and cannot declare "outputs".`);
 		}
 		if (task.ready !== undefined && !task.persistent) {
-			throw new BundoError("config-invalid", `Task "${task.name}": "ready" requires "persistent: true".`);
+			throw new OutdoError("config-invalid", `Task "${task.name}": "ready" requires "persistent: true".`);
 		}
 		if (task.retry !== undefined && task.persistent) {
-			throw new BundoError(
+			throw new OutdoError(
 				"config-invalid",
 				`Task "${task.name}" is persistent and cannot declare "retry" (services restart via watch mode).`,
 			);
 		}
 		if (task.timeoutMs !== undefined && task.persistent) {
-			throw new BundoError("config-invalid", `Task "${task.name}" is persistent and cannot declare "timeoutMs".`);
+			throw new OutdoError("config-invalid", `Task "${task.name}" is persistent and cannot declare "timeoutMs".`);
 		}
 	}
 }

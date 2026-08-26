@@ -1,17 +1,17 @@
 # Execution Model
 
-`bundo <task>` resolves the task's transitive dependency closure into a DAG, rejects cycles at load (with the exact path), and executes dependencies first — **in parallel wherever the graph allows**.
+`outdo <task>` resolves the task's transitive dependency closure into a DAG, rejects cycles at load (with the exact path), and executes dependencies first — **in parallel wherever the graph allows**.
 
 <DagDemo />
 
-Above: bundo's own `check` task. `typecheck`, `lint`, and `test` share no edges, so they start simultaneously; `check` unblocks the moment the slowest finishes.
+Above: outdo's own `check` task. `typecheck`, `lint`, and `test` share no edges, so they start simultaneously; `check` unblocks the moment the slowest finishes.
 
 ## Concurrency
 
 ```sh
-bundo check          # parallel branches, one process per task
-bundo -j 2 check     # cap at 2 concurrent tasks
-bundo -j 1 check     # fully serialized
+outdo check          # parallel branches, one process per task
+outdo -j 2 check     # cap at 2 concurrent tasks
+outdo -j 1 check     # fully serialized
 ```
 
 Default concurrency is your CPU count. Pure dependency *chains* skip child processes entirely and run in-process with fully inherited stdio — colors, progress bars, and interactive prompts just work. A chain still uses child processes when the run needs them: services, `timeoutMs` tasks (the budget must be enforceable), or output-shaping flags (`--json`, `--profile`, explicit `--log-order`/`--output-logs`, `--isolate`).
@@ -50,15 +50,15 @@ lint      | ✓ clean
 
 1. Tasks that depend on it (transitively) are **skipped**
 2. Running siblings receive a **cooperative abort** — their `ctx.signal` fires, then after a 5s grace period the whole process tree is killed
-3. bundo exits `1` with a summary: `— 2 ok, 1 failed, 2 skipped · 3.1s total`
+3. outdo exits `1` with a summary: `— 2 ok, 1 failed, 2 skipped · 3.1s total`
 
 ```sh
-bundo --continue check   # run everything independent of the failure anyway
+outdo --continue check   # run everything independent of the failure anyway
 ```
 
 ## Retries
 
-Retries are **opt-in per task** — bundo never silently re-runs anything:
+Retries are **opt-in per task** — outdo never silently re-runs anything:
 
 ```ts
 deploy: {
@@ -90,10 +90,10 @@ When the budget is exceeded, the task gets the standard cooperative abort (`ctx.
 
 ## The run report (`--json`)
 
-`bundo <task> --json` moves all task logs to stderr and prints exactly one JSON document on stdout when the run finishes — status, timing, and cache result per task, plus the [critical path](#timing-and-the-critical-path):
+`outdo <task> --json` moves all task logs to stderr and prints exactly one JSON document on stdout when the run finishes — status, timing, and cache result per task, plus the [critical path](#timing-and-the-critical-path):
 
 ```sh
-bundo build --json | jq '.summary'
+outdo build --json | jq '.summary'
 ```
 
 See [Exit Codes & JSON](/reference/exit-codes-and-json#run-report-json) for the full schema. The report is also emitted on failure (the process still exits `1` with the error JSON on stderr), which makes it ideal for CI and [AI agents](/reference/ai-agents).
@@ -109,8 +109,8 @@ Every run ends with a timing summary:
 The **critical path** is the dependency chain that determined your wall-clock time — the thing to optimize when a run feels slow. For the full picture:
 
 ```sh
-bundo build --profile          # writes .bundo/trace.json
-bundo build --profile=t.json   # custom path
+outdo build --profile          # writes .outdo/trace.json
+outdo build --profile=t.json   # custom path
 ```
 
 The trace is Chrome trace-event format — open it in `chrome://tracing` or [Perfetto](https://ui.perfetto.dev) to see every task as a timeline slice, lane-packed by actual concurrency.
@@ -128,5 +128,5 @@ First Ctrl-C: cooperative shutdown (same abort → grace → kill cascade), exit
 Everything after `--` goes verbatim to the tasks you named — never to their dependencies:
 
 ```sh
-bundo test -- --bail     # ctx.rest === ["--bail"] in test; deps get []
+outdo test -- --bail     # ctx.rest === ["--bail"] in test; deps get []
 ```

@@ -1,6 +1,6 @@
 # Caching
 
-Declare what a task reads and writes, and bundo skips it when nothing changed:
+Declare what a task reads and writes, and outdo skips it when nothing changed:
 
 ```ts
 build: {
@@ -28,16 +28,16 @@ A task is skipped only when **all** of these are unchanged:
 
 Plus: every declared `outputs` glob must still match at least one file. Delete `dist/` and the task re-runs even though inputs are unchanged.
 
-Each component is hashed **separately** and stored in the manifest, which is what lets [`bundo explain`](#why-will-this-re-run) tell you exactly which one changed.
+Each component is hashed **separately** and stored in the manifest, which is what lets [`outdo explain`](#why-will-this-re-run) tell you exactly which one changed.
 
 ## What it is — and isn't
 
-bundo's cache is **skip-if-unchanged**, not artifact restore. On a hit, the task simply doesn't run (`✓ build (cached)` in ~0ms). bundo does **not** store copies of your outputs and cannot re-materialize a deleted `dist/` from a cache archive — that's Turborepo/Nx territory (and why those tools exist). See [Why bundo?](/guide/why-bundo) for the honest comparison.
+outdo's cache is **skip-if-unchanged**, not artifact restore. On a hit, the task simply doesn't run (`✓ build (cached)` in ~0ms). outdo does **not** store copies of your outputs and cannot re-materialize a deleted `dist/` from a cache archive — that's Turborepo/Nx territory (and why those tools exist). See [Why outdo?](/guide/why-outdo) for the honest comparison.
 
-Fingerprints live in `.bundo/cache/` next to your `do.ts`.
+Fingerprints live in `.outdo/cache/` next to your `do.ts`.
 
 ::: warning
-Add `.bundo/` to `.gitignore` — `bundo init` does this for you. Fingerprints are per-machine state, not shared artifacts.
+Add `.outdo/` to `.gitignore` — `outdo init` does this for you. Fingerprints are per-machine state, not shared artifacts.
 :::
 
 On a hit, one thing *is* restored: the task's [data output](/guide/tasks-and-deps#task-outputs-as-data) is replayed from the manifest, so dependents keep working across cache skips.
@@ -47,7 +47,7 @@ On a hit, one thing *is* restored: the task's [data output](/guide/tasks-and-dep
 Stop guessing — ask:
 
 ```sh
-bundo explain build
+outdo explain build
 ```
 
 ```txt
@@ -71,9 +71,9 @@ details for build:
 ## Controlling it
 
 ```sh
-bundo --force build     # ignore stored fingerprints (still records new ones)
-bundo --dry build       # shows which planned tasks would be cache-skipped
-bundo explain build     # explains *why* each task will run or skip
+outdo --force build     # ignore stored fingerprints (still records new ones)
+outdo --dry build       # shows which planned tasks would be cache-skipped
+outdo explain build     # explains *why* each task will run or skip
 ```
 
 Tasks without `inputs` never cache — they run every time. Services (`persistent: true`) never cache either.

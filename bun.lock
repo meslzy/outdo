@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "bundo",
+      "name": "outdo",
       "devDependencies": {
         "@biomejs/biome": "^2.5.10",
         "@types/bun": "latest",

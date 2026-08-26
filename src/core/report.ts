@@ -233,7 +233,7 @@ export function toChromeTrace(report: RunReport): unknown[] {
 			ph: "M",
 			pid: 1,
 			args: {
-				name: "bundo",
+				name: "outdo",
 			},
 		},
 	];

@@ -32,6 +32,6 @@ jobs:
           bun pm pack
           mkdir -p /tmp/scratch && cd /tmp/scratch
           printf '{ "name": "scratch", "private": true }' > package.json
-          bun add "file:$GITHUB_WORKSPACE/$(ls "$GITHUB_WORKSPACE"/bundo-*.tgz | head -1 | xargs basename)"
-          printf 'import { defineTasks } from "bundo";\nexport default defineTasks({ ok: { run: () => console.log("shim works") } });\n' > do.ts
-          bunx bundo --color=never ok | grep "shim works"
+          bun add "file:$GITHUB_WORKSPACE/$(ls "$GITHUB_WORKSPACE"/outdo-*.tgz | head -1 | xargs basename)"
+          printf 'import { defineTasks } from "outdo";\nexport default defineTasks({ ok: { run: () => console.log("shim works") } });\n' > do.ts
+          bunx outdo --color=never ok | grep "shim works"

@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: bundo
+  name: outdo
   text: The typed task runner for Bun
   tagline: Tasks live in a typed do.ts — no YAML, no Makefile, no DSL. Compile-time dependency checking, schema-validated env, parallel DAG scheduling, caching, and watch mode. Zero runtime dependencies.
   actions:
@@ -10,11 +10,11 @@ hero:
       text: Get Started
       link: /guide/getting-started
     - theme: alt
-      text: Why bundo?
-      link: /guide/why-bundo
+      text: Why outdo?
+      link: /guide/why-outdo
     - theme: alt
       text: GitHub
-      link: https://github.com/meslzy/bundo
+      link: https://github.com/meslzy/outdo
 
 features:
   - icon: 🧠
@@ -23,7 +23,7 @@ features:
     link: /guide/tasks-and-deps
   - icon: 🔐
     title: Env contracts
-    details: Declare a zod / valibot / arktype schema per task. Validated before anything runs; bundo --print-env shows which file set every variable.
+    details: Declare a zod / valibot / arktype schema per task. Validated before anything runs; outdo --print-env shows which file set every variable.
     link: /guide/env
   - icon: 🎛️
     title: Typed CLI flags per task
@@ -35,19 +35,19 @@ features:
     link: /guide/execution
   - icon: ⚡
     title: Fingerprint caching
-    details: Declare inputs and outputs; unchanged tasks are skipped by content hash. bundo explain tells you exactly why anything re-runs.
+    details: Declare inputs and outputs; unchanged tasks are skipped by content hash. outdo explain tells you exactly why anything re-runs.
     link: /guide/caching
   - icon: 🔌
     title: Services that are actually ready
-    details: Readiness probes (log line, TCP port, HTTP health) gate dependents. bundo dev brings your stack up in order — db, api, web.
+    details: Readiness probes (log line, TCP port, HTTP health) gate dependents. outdo dev brings your stack up in order — db, api, web.
     link: /guide/watch-and-services
   - icon: 🌿
     title: Git-aware monorepo runs
-    details: bundo test --affected runs only what changed vs your base branch — through both the package graph and the task graph.
+    details: outdo test --affected runs only what changed vs your base branch — through both the package graph and the task graph.
     link: /guide/workspaces
   - icon: 📊
     title: Run reports & traces
-    details: bundo build --json emits a full execution report — per-task timing, cache result, critical path. --profile writes a Chrome trace.
+    details: outdo build --json emits a full execution report — per-task timing, cache result, critical path. --profile writes a Chrome trace.
     link: /guide/execution
   - icon: 🤖
     title: Built for AI agents too
@@ -55,17 +55,17 @@ features:
     link: /reference/ai-agents
 ---
 
-## Sixty seconds of bundo
+## Sixty seconds of outdo
 
 ::: code-group
 
 ```sh [install]
-bun add -d bundo
-bunx bundo init      # scaffolds a starter do.ts
+bun add -d outdo
+bunx outdo init      # scaffolds a starter do.ts
 ```
 
 ```ts [do.ts]
-import { defineTasks, task } from "bundo";
+import { defineTasks, task } from "outdo";
 import { z } from "zod";
 
 export default defineTasks({
@@ -96,13 +96,13 @@ export default defineTasks({
 ```
 
 ```sh [run]
-bundo                     # grouped task list
-bundo build               # run a task + its deps
-bundo deploy -d           # typed flags
-bundo --watch build       # re-run on change
-bundo explain build       # why will it run? what's cached?
-bundo --affected test     # only what changed vs the base branch
-bundo --json build        # full run report for CI / agents
+outdo                     # grouped task list
+outdo build               # run a task + its deps
+outdo deploy -d           # typed flags
+outdo --watch build       # re-run on change
+outdo explain build       # why will it run? what's cached?
+outdo --affected test     # only what changed vs the base branch
+outdo --json build        # full run report for CI / agents
 ```
 
 :::

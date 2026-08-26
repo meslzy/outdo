@@ -1,6 +1,6 @@
 /**
- * Hidden `bundo __worker` entry: runs exactly one task in this process,
- * driven by IPC from the parent bundo. The parent pipes our stdout/stderr
+ * Hidden `outdo __worker` entry: runs exactly one task in this process,
+ * driven by IPC from the parent outdo. The parent pipes our stdout/stderr
  * into the output multiplexer and coordinates abort/kill.
  */
 

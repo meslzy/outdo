@@ -121,7 +121,7 @@ describe("parallel DAG execution", () => {
 				"slow",
 			],
 			{
-				BUNDO_TEST_FAST_SLOW: "1",
+				OUTDO_TEST_FAST_SLOW: "1",
 			},
 		);
 		expect(exitCode).toBe(1);

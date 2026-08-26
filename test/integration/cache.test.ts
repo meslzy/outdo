@@ -11,7 +11,7 @@ let dir: string;
 const INDEX = join(import.meta.dir, "..", "..", "src", "index.ts").replaceAll("\\", "/");
 
 beforeEach(async () => {
-	dir = mkdtempSync(join(tmpdir(), "bundo-cache-"));
+	dir = mkdtempSync(join(tmpdir(), "outdo-cache-"));
 	cpSync(FIXTURE, dir, {
 		recursive: true,
 	});

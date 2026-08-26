@@ -69,9 +69,9 @@ export function prefixColor(name: string): (text: string) => string {
 	return PREFIX_STYLES[idx] as (text: string) => string;
 }
 
-/** Debug logging, gated by BUNDO_LOG=debug. stderr only. */
+/** Debug logging, gated by OUTDO_LOG=debug. stderr only. */
 export function debugLog(...args: unknown[]): void {
-	if (process.env.BUNDO_LOG === "debug") {
-		console.error(dim("[bundo:debug]"), ...args);
+	if (process.env.OUTDO_LOG === "debug") {
+		console.error(dim("[outdo:debug]"), ...args);
 	}
 }

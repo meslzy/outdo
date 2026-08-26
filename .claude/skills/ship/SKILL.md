@@ -1,11 +1,11 @@
 ---
 name: ship
-description: Ship a bundo change end-to-end — branch, verify, changelog, version bump, commit, PR/merge, and the automated npm release. Use this whenever the user wants to publish, release, or ship their changes, fix a bug and get it out, bump the version, cut a release, merge work into main, or asks "how do I publish this?" — even if they only say something like "I fixed the bug, let's get it live". Also use it to answer questions about bundo's branching strategy or release pipeline.
+description: Ship a outdo change end-to-end — branch, verify, changelog, version bump, commit, PR/merge, and the automated npm release. Use this whenever the user wants to publish, release, or ship their changes, fix a bug and get it out, bump the version, cut a release, merge work into main, or asks "how do I publish this?" — even if they only say something like "I fixed the bug, let's get it live". Also use it to answer questions about outdo's branching strategy or release pipeline.
 ---
 
-# Shipping a bundo change
+# Shipping a outdo change
 
-bundo uses **trunk-based development with an automated release pipeline**: short-lived branches merge into `main`, and pushing a new `package.json` version to `main` publishes to npm, tags `v<version>`, and creates a GitHub Release — all automatically via `.github/workflows/release.yml`. Your job is to prepare the change so that automation does the rest.
+outdo uses **trunk-based development with an automated release pipeline**: short-lived branches merge into `main`, and pushing a new `package.json` version to `main` publishes to npm, tags `v<version>`, and creates a GitHub Release — all automatically via `.github/workflows/release.yml`. Your job is to prepare the change so that automation does the rest.
 
 The pipeline, end to end:
 
@@ -40,7 +40,7 @@ Or dogfood it in one shot: `bun src/cli.ts check`.
 
 ## 3. Decide: does this publish a new version?
 
-- **User-facing change** (behavior, CLI surface, API, bug fix) → bump the version. bundo is 0.x: **breaking change → bump minor** (`0.1.0`), **feature or fix → bump patch** (`0.0.2`).
+- **User-facing change** (behavior, CLI surface, API, bug fix) → bump the version. outdo is 0.x: **breaking change → bump minor** (`0.1.0`), **feature or fix → bump patch** (`0.0.2`).
 - **Docs, CI, tests, refactors with no visible change** → do NOT bump. The merge lands on main, release.yml sees the version already on npm, and skips with a warning. That's the designed behavior, not an error.
 
 ## 4. Changelog + version bump (only when publishing)
@@ -83,12 +83,12 @@ gh pr merge --squash --delete-branch
 Nothing manual remains; watch the automation land:
 
 ```sh
-gh run watch --repo meslzy/bundo          # release workflow
+gh run watch --repo meslzy/outdo          # release workflow
 gh release view v<version>                 # tag + notes exist
-curl -s https://registry.npmjs.org/bundo/<version> | head -c 200   # it's on npm
+curl -s https://registry.npmjs.org/outdo/<version> | head -c 200   # it's on npm
 ```
 
-If the publish step failed with an OIDC/auth error, the trusted publisher config on npmjs.com is the suspect (package Settings → Trusted Publisher: owner `meslzy`, repo `bundo`, workflow `release.yml`) — that's account state, only the user can fix it.
+If the publish step failed with an OIDC/auth error, the trusted publisher config on npmjs.com is the suspect (package Settings → Trusted Publisher: owner `meslzy`, repo `outdo`, workflow `release.yml`) — that's account state, only the user can fix it.
 
 ## Gotchas worth knowing
 

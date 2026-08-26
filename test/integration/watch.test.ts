@@ -9,7 +9,7 @@ const FIXTURE = join(REPO, "test", "fixtures", "watch");
 const INDEX = join(REPO, "src", "index.ts").replaceAll("\\", "/");
 
 async function makeDir(): Promise<string> {
-	const dir = mkdtempSync(join(tmpdir(), "bundo-watch-"));
+	const dir = mkdtempSync(join(tmpdir(), "outdo-watch-"));
 	cpSync(FIXTURE, dir, {
 		recursive: true,
 	});
@@ -107,7 +107,7 @@ describe("watch mode", () => {
 				"build",
 			],
 			{
-				BUNDO_WATCH_POLL: "1",
+				OUTDO_WATCH_POLL: "1",
 			},
 		);
 		try {

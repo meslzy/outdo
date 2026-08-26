@@ -1,7 +1,7 @@
 /** Per-task flag parsing (ArgSpec records -> parseArgs) and task help. */
 
 import { parseArgs } from "node:util";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { bold, cyan, dim } from "~/core/logger";
 import type { Task } from "~/core/model";
 import { didYouMean } from "~/core/util";
@@ -50,10 +50,10 @@ export function parseTaskArgs(task: Task, argv: readonly string[]): Record<strin
 			if (close !== undefined) {
 				hint = ` Did you mean "--${close}"?`;
 			} else {
-				hint = ` Global flags go before the task name; see "bundo --help".`;
+				hint = ` Global flags go before the task name; see "outdo --help".`;
 			}
 		}
-		throw new BundoError("usage", `Task "${task.name}": ${message}${hint}`, {
+		throw new OutdoError("usage", `Task "${task.name}": ${message}${hint}`, {
 			task: task.name,
 		});
 	}
@@ -71,9 +71,9 @@ export function parseTaskArgs(task: Task, argv: readonly string[]): Record<strin
 		out[flag] = value;
 	}
 	if (missing.length > 0) {
-		throw new BundoError(
+		throw new OutdoError(
 			"usage",
-			`Task "${task.name}" requires ${missing.map((f) => `--${f}`).join(", ")}. See "bundo ${task.name} --help".`,
+			`Task "${task.name}" requires ${missing.map((f) => `--${f}`).join(", ")}. See "outdo ${task.name} --help".`,
 			{
 				task: task.name,
 				missing,
@@ -94,7 +94,7 @@ export function renderTaskHelp(task: Task): string {
 	const lines: string[] = [];
 	lines.push(`${bold(task.name)}${task.desc === undefined ? "" : ` — ${task.desc}`}`);
 	lines.push("");
-	lines.push(`Usage: bundo ${task.name}${Object.keys(task.args).length > 0 ? " [flags]" : ""} [-- args]`);
+	lines.push(`Usage: outdo ${task.name}${Object.keys(task.args).length > 0 ? " [flags]" : ""} [-- args]`);
 	if (task.deps.length > 0) {
 		lines.push(`Deps:  ${task.deps.join(", ")}`);
 	}
@@ -122,7 +122,7 @@ export function renderTaskHelp(task: Task): string {
 	}
 	if (task.env !== undefined) {
 		lines.push("");
-		lines.push(dim(`env: validated by schema — inspect with "bundo --print-env ${task.name}"`));
+		lines.push(dim(`env: validated by schema — inspect with "outdo --print-env ${task.name}"`));
 	}
 	return lines.join("\n");
 }

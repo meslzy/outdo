@@ -9,7 +9,7 @@ export const EXIT = {
 
 export type ExitCode = (typeof EXIT)[keyof typeof EXIT];
 
-export type BundoErrorCode =
+export type OutdoErrorCode =
 	| "usage"
 	| "config-not-found"
 	| "config-invalid"
@@ -20,7 +20,7 @@ export type BundoErrorCode =
 	| "git"
 	| "interrupted";
 
-const EXIT_BY_CODE: Record<BundoErrorCode, ExitCode> = {
+const EXIT_BY_CODE: Record<OutdoErrorCode, ExitCode> = {
 	usage: EXIT.usage,
 	"config-not-found": EXIT.config,
 	"config-invalid": EXIT.config,
@@ -33,15 +33,15 @@ const EXIT_BY_CODE: Record<BundoErrorCode, ExitCode> = {
 };
 
 /** An error with a stable machine-readable code and a mapped exit code. */
-export class BundoError extends Error {
-	readonly code: BundoErrorCode;
+export class OutdoError extends Error {
+	readonly code: OutdoErrorCode;
 	readonly exitCode: ExitCode;
 	/** Extra machine-readable payload for `--json` error output. */
 	readonly detail: unknown;
 
-	constructor(code: BundoErrorCode, message: string, detail?: unknown) {
+	constructor(code: OutdoErrorCode, message: string, detail?: unknown) {
 		super(message);
-		this.name = "BundoError";
+		this.name = "OutdoError";
 		this.code = code;
 		this.exitCode = EXIT_BY_CODE[code];
 		this.detail = detail;

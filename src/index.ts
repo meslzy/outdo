@@ -1,5 +1,5 @@
 /**
- * bundo — public library entry. `do.ts` files import from here.
+ * outdo — public library entry. `do.ts` files import from here.
  */
 
 import type {
@@ -37,7 +37,7 @@ export type {
 } from "./types";
 
 /** Runtime brand so the CLI can verify a do.ts default export. */
-export const TASKS_BRAND: unique symbol = Symbol.for("bundo.tasks.v1");
+export const TASKS_BRAND: unique symbol = Symbol.for("outdo.tasks.v1");
 
 /**
  * Build a single task with a fully-typed context:

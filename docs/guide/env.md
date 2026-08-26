@@ -1,6 +1,6 @@
 # Environment
 
-bundo treats the environment as a first-class, **verifiable** input — not something you debug four minutes into a failed deploy.
+outdo treats the environment as a first-class, **verifiable** input — not something you debug four minutes into a failed deploy.
 
 ## The cascade
 
@@ -17,7 +17,7 @@ Resolved from the `do.ts` directory (not your shell's cwd), matching Bun's own l
 
 ## Schemas: fail before anything runs
 
-Declare required env per task with **any [Standard Schema](https://standardschema.dev) validator** — zod v4, valibot, arktype… bundo depends on none of them:
+Declare required env per task with **any [Standard Schema](https://standardschema.dev) validator** — zod v4, valibot, arktype… outdo depends on none of them:
 
 ::: code-group
 
@@ -77,7 +77,7 @@ Process environments only carry strings. Use your validator's coercion (`z.coerc
 Which file set what? What got overridden? Is the schema satisfied? Without running anything:
 
 ```txt
-$ bundo --print-env deploy
+$ outdo --print-env deploy
 env for task "deploy"
 loaded: .env -> .env.local (process env wins)
 

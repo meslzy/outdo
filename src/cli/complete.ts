@@ -1,5 +1,5 @@
 /**
- * Hidden `bundo __complete -- <words...>` endpoint. Prints one candidate per
+ * Hidden `outdo __complete -- <words...>` endpoint. Prints one candidate per
  * line as `value<TAB>description`. Must never fail loudly and must stay fast —
  * shells call this on every TAB press.
  */

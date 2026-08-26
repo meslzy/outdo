@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.bundo/
+.outdo/
 coverage/
 *.tsbuildinfo
 .env.local

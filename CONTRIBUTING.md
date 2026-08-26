@@ -1,6 +1,6 @@
-# Contributing to bundo
+# Contributing to outdo
 
-Thanks for helping! bundo is small on purpose — a focused, zero-dependency task runner for Bun.
+Thanks for helping! outdo is small on purpose — a focused, zero-dependency task runner for Bun.
 
 ## Setup
 

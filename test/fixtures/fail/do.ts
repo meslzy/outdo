@@ -28,7 +28,7 @@ export default defineTasks({
 		],
 		run: async ({ signal }) => {
 			console.log("slow started");
-			const rounds = process.env.BUNDO_TEST_FAST_SLOW === "1" ? 3 : 100;
+			const rounds = process.env.OUTDO_TEST_FAST_SLOW === "1" ? 3 : 100;
 			for (let i = 0; i < rounds; i++) {
 				if (signal.aborted) {
 					console.log("slow aborted");

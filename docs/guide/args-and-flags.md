@@ -19,8 +19,8 @@ exec: task({
 ```
 
 ```sh
-bundo exec -s worker bash
-bundo exec --service worker --cmd bash -v
+outdo exec -s worker bash
+outdo exec --service worker --cmd bash -v
 ```
 
 ## The ArgSpec
@@ -38,10 +38,10 @@ The context type follows the declaration: `required: true` or a `default` → `s
 ## Auto-generated help
 
 ```txt
-$ bundo exec --help
+$ outdo exec --help
 exec — Run a command inside a service container
 
-Usage: bundo exec [flags] [-- args]
+Usage: outdo exec [flags] [-- args]
 
 Flags
   -s, --service  compose service (string, default: "api")
@@ -49,21 +49,21 @@ Flags
   -v, --verbose
 ```
 
-Typos get the same treatment as everything else in bundo:
+Typos get the same treatment as everything else in outdo:
 
 ```txt
-$ bundo exec --servcie api
+$ outdo exec --servcie api
 error Task "exec": Unknown option '--servcie'. Did you mean "--service"?
 ```
 
 ## Rules worth knowing
 
-- **Global flags go before the task name**, task flags after: `bundo --watch exec -s api`
-- Task flags require exactly **one** task on the command line (`bundo a b --flag` is a usage error)
+- **Global flags go before the task name**, task flags after: `outdo --watch exec -s api`
+- Task flags require exactly **one** task on the command line (`outdo a b --flag` is a usage error)
 - Everything after `--` skips flag parsing entirely and lands in `ctx.rest` — only for tasks you explicitly named, never their deps:
 
 ```sh
-bundo test -- --bail --coverage
+outdo test -- --bail --coverage
 # in test:  ctx.rest === ["--bail", "--coverage"]
 # in deps:  ctx.rest === []
 ```

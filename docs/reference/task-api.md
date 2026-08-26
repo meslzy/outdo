@@ -57,7 +57,7 @@ run: async ({ $, env, args, rest, signal, log, cwd, name }) => {
 ## Type-level behavior worth knowing
 
 ```ts
-import { defineTasks, task } from "bundo";
+import { defineTasks, task } from "outdo";
 import { z } from "zod";
 
 export default defineTasks({
@@ -80,6 +80,6 @@ export default defineTasks({
 });
 ```
 
-- Everything in bundo's public surface is exported from `"bundo"`: `defineTasks`, `task`, `optional`, `from`, and the types (`TaskCtx`, `ArgSpec`, `DepEntry`, `ReadyProbe`, `RetrySpec`, `StandardSchemaV1`, …).
+- Everything in outdo's public surface is exported from `"outdo"`: `defineTasks`, `task`, `optional`, `from`, and the types (`TaskCtx`, `ArgSpec`, `DepEntry`, `ReadyProbe`, `RetrySpec`, `StandardSchemaV1`, …).
 - Task names can be any string — `"db:reset"`, `"deploy"` — quotes required only when not a valid identifier.
 - `from()` producers propagate return-type changes to every consumer automatically; conditional/optional entries widen the consumer's view to `T | undefined`.

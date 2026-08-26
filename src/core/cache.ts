@@ -4,9 +4,9 @@
  * fingerprint = hash(version, component hashes, sorted input content digests)
  * where the named components cover the task definition (incl. run body text),
  * validated env output, args + rest, dep fingerprints, and dep data outputs.
- * Component hashes are persisted in the manifest so `bundo explain` can name
+ * Component hashes are persisted in the manifest so `outdo explain` can name
  * exactly what changed. Content hashing uses an mtime+size fast path per file
- * (wireit-style correctness at go-task speed). State lives in .bundo/cache/
+ * (wireit-style correctness at go-task speed). State lives in .outdo/cache/
  * at the repo root.
  */
 
@@ -103,7 +103,7 @@ async function hashFile(path: string): Promise<string> {
 }
 
 function cacheDir(rootDir: string): string {
-	return join(rootDir, ".bundo", "cache");
+	return join(rootDir, ".outdo", "cache");
 }
 
 function manifestPath(rootDir: string, taskName: string): string {
@@ -239,7 +239,7 @@ export async function checkCache(
 
 /**
  * Like checkCache, but explains a miss: reads the manifest even under --force
- * and names every changed component. Used by `bundo explain`; the run path
+ * and names every changed component. Used by `outdo explain`; the run path
  * stays on the leaner checkCache.
  */
 export async function diagnoseCache(
@@ -328,7 +328,7 @@ export async function diagnoseCache(
 
 /**
  * Persist the manifest after a successful run. Never throws: an unwritable
- * .bundo (read-only checkout, full disk) must not turn a green task into a
+ * .outdo (read-only checkout, full disk) must not turn a green task into a
  * failure — the task simply stays uncached.
  */
 export async function writeCache(

@@ -1,5 +1,5 @@
 /**
- * bundo public type surface.
+ * outdo public type surface.
  *
  * Everything here is type-only (no runtime imports) so that importing types
  * never costs startup time.
@@ -269,7 +269,7 @@ export interface TaskInput<
 	deps?: Deps;
 	/** Standard Schema for required env vars — validated before anything runs. */
 	env?: E;
-	/** Typed CLI flags: `bundo <task> --flag value`. */
+	/** Typed CLI flags: `outdo <task> --flag value`. */
 	args?: A;
 	run?: (ctx: TaskCtx<EnvOut<E>, ArgsOut<A>, DepsDataOf<Deps>>) => R;
 }

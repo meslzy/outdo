@@ -7,7 +7,7 @@ import { allPatternsMatchSomething, compile, expand, matches, staticRoots } from
 let dir: string;
 
 beforeAll(() => {
-	dir = mkdtempSync(join(tmpdir(), "bundo-globs-"));
+	dir = mkdtempSync(join(tmpdir(), "outdo-globs-"));
 	mkdirSync(join(dir, "src", "sub"), {
 		recursive: true,
 	});

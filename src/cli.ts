@@ -1,25 +1,25 @@
 #!/usr/bin/env bun
 /**
- * bundo CLI entry. Keep this module's static imports minimal — everything
+ * outdo CLI entry. Keep this module's static imports minimal — everything
  * beyond parsing and error handling is loaded lazily per command.
  */
 
 import { parseCli, wantsJsonErrors } from "~/cli/parse";
-import { BundoError, EXIT } from "~/core/errors";
+import { EXIT, OutdoError } from "~/core/errors";
 import { red, setColorMode } from "~/core/logger";
 
-const HELP = `bundo — TypeScript-native task runner for Bun
+const HELP = `outdo — TypeScript-native task runner for Bun
 
 Usage
-  bundo                        List available tasks
-  bundo <task> [flags] [-- args]   Run a task (and its dependencies)
-  bundo <task1> <task2>        Run multiple tasks
-  bundo ls [--json]            List tasks (machine-readable with --json)
-  bundo graph [--dot]          Print the dependency graph (mermaid or dot)
-  bundo explain <task>         Explain the plan: cache verdicts, inputs, backend
-  bundo init                   Scaffold a starter do.ts
-  bundo completion <shell>     Print shell completions (bash|zsh|fish|powershell)
-  bundo --print-env <task>     Explain resolved env + validate the task's schema
+  outdo                        List available tasks
+  outdo <task> [flags] [-- args]   Run a task (and its dependencies)
+  outdo <task1> <task2>        Run multiple tasks
+  outdo ls [--json]            List tasks (machine-readable with --json)
+  outdo graph [--dot]          Print the dependency graph (mermaid or dot)
+  outdo explain <task>         Explain the plan: cache verdicts, inputs, backend
+  outdo init                   Scaffold a starter do.ts
+  outdo completion <shell>     Print shell completions (bash|zsh|fish|powershell)
+  outdo --print-env <task>     Explain resolved env + validate the task's schema
 
 Flags
   -w, --watch                  Re-run tasks when watched files change
@@ -30,7 +30,7 @@ Flags
       --dry[=json]             Show the plan without running anything
       --affected[=<rev>]       Only run tasks affected by git changes vs <rev>
                                (default: merge-base with origin's default branch)
-      --profile[=<file>]       Write a Chrome trace of the run (.bundo/trace.json)
+      --profile[=<file>]       Write a Chrome trace of the run (.outdo/trace.json)
   -f, --force                  Ignore the fingerprint cache
   -F, --filter <pattern>       Filter workspace packages
       --isolate                Force the child-process backend (no in-process chains)
@@ -103,7 +103,7 @@ async function main(): Promise<number> {
 try {
 	process.exitCode = await main();
 } catch (error) {
-	if (error instanceof BundoError) {
+	if (error instanceof OutdoError) {
 		const wantJson = wantsJsonErrors(process.argv.slice(2));
 		if (wantJson) {
 			console.error(

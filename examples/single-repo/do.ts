@@ -3,7 +3,7 @@
  * Copy next to your package.json and adapt.
  */
 
-import { defineTasks, task } from "bundo";
+import { defineTasks, task } from "outdo";
 import { z } from "zod";
 
 export default defineTasks({

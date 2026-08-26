@@ -1,10 +1,10 @@
-# Why bundo? (and why not)
+# Why outdo? (and why not)
 
-Every tool below is good at what it was built for. This page is the honest version of the comparison — including what bundo **can't** do — so you can decide in five minutes whether it fits. Claims verified against each tool's official docs, August 2026.
+Every tool below is good at what it was built for. This page is the honest version of the comparison — including what outdo **can't** do — so you can decide in five minutes whether it fits. Claims verified against each tool's official docs, August 2026.
 
 ## The matrix
 
-| | Make | just | Task | mise | wireit | Turbo | Nx | `bun run` | **bundo** |
+| | Make | just | Task | mise | wireit | Turbo | Nx | `bun run` | **outdo** |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Config | Makefile DSL | justfile DSL | YAML | TOML | package.json | turbo.json | nx.json | package.json | **typed TS** |
 | Editor typing | — | 3rd-party LSP | JSON Schema | JSON Schema | JSON Schema | JSON Schema | JSON Schema + LSP | — | **full TypeScript** |
@@ -24,19 +24,19 @@ Every tool below is good at what it was built for. This page is the honest versi
 | Runtime needed | none (C) | none (Rust) | none (Go) | none (Rust) | Node | Node/npm | Node | Bun | **Bun ≥ 1.4 only** |
 | Since / backing | 1988, FSF | 2016, community | ~2017, community | Rust, community | 2022, Google repo | 2021, Vercel | 2017, Nx Ltd | Oven | **2026, one maintainer** |
 
-## Where bundo genuinely wins
+## Where outdo genuinely wins
 
 - **Errors move left.** A dependency typo is a *compile error in your editor* with a fix suggestion — every other tool tells you at invocation or later. Env problems fail in one line *before* any task runs, not mid-deploy.
 - **Types are the config.** Autocomplete, refactoring, go-to-definition on your task graph; `ctx.env` and `ctx.args` are real inferred types, not strings you cast.
-- **Typed per-task flags.** mise and Nx have declared flags too — bundo's are TypeScript-inferred end-to-end with generated `--help` and completions.
+- **Typed per-task flags.** mise and Nx have declared flags too — outdo's are TypeScript-inferred end-to-end with generated `--help` and completions.
 - **Services you can depend on.** `deps: ["dev"]` on a persistent task works; Turborepo's persistent tasks can't be depended on at all.
-- **Nothing to install but bundo.** Zero runtime dependencies, one 74KB package, and your task file is just TypeScript running on the runtime you already use.
+- **Nothing to install but outdo.** Zero runtime dependencies, one 74KB package, and your task file is just TypeScript running on the runtime you already use.
 
-## What bundo can't do (yet or by design)
+## What outdo can't do (yet or by design)
 
 ::: warning Read this before adopting
-- **No remote cache.** Turborepo and Nx share build artifacts across CI machines; bundo's cache is per-machine.
-- **Skip, not restore.** A cache hit means "don't re-run" — bundo never re-materializes a deleted `dist/` from an archive the way Turbo/Nx/wireit can. Delete outputs → full re-run.
+- **No remote cache.** Turborepo and Nx share build artifacts across CI machines; outdo's cache is per-machine.
+- **Skip, not restore.** A cache hit means "don't re-run" — outdo never re-materializes a deleted `dist/` from an archive the way Turbo/Nx/wireit can. Delete outputs → full re-run.
 - **No content-addressable storage, no distributed execution** (Nx Agents territory).
 - **Bun ≥ 1.4 or nothing.** No Node, no Deno. Make/just/Task/mise are single binaries that run anywhere.
 - **Config is code.** `do.ts` is arbitrary TypeScript executed on load — maximum power, but external tools can't statically analyze your graph the way they can a YAML/JSON file.
@@ -52,6 +52,6 @@ Every tool below is good at what it was built for. This page is the honest versi
 - **wireit** — you're committed to Node and need an artifact-restoring cache.
 - **plain `bun run`** — a handful of scripts with no dependency graph; `--filter` already runs package scripts in parallel.
 
-## Choose bundo when…
+## Choose outdo when…
 
 You're on Bun, your task graph deserves the same type safety as the rest of your code, your environment deserves validation before execution, and you want one fast tool — not a build platform — doing it. That's the entire pitch.

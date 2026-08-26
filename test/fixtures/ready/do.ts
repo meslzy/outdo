@@ -1,7 +1,7 @@
 import { defineTasks } from "../../../src/index";
 
-const port = Number(process.env.BUNDO_TEST_PORT ?? "0") || 65_001;
-const url = process.env.BUNDO_TEST_URL ?? "http://127.0.0.1:65002/health";
+const port = Number(process.env.OUTDO_TEST_PORT ?? "0") || 65_001;
+const url = process.env.OUTDO_TEST_URL ?? "http://127.0.0.1:65002/health";
 const urlPort = Number(new URL(url).port) || 65_002;
 
 const holdUntilAbort = (signal: AbortSignal): Promise<void> =>

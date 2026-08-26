@@ -10,7 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expandValue, parseEnvFile } from "~/core/envfile";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import type { Task } from "~/core/model";
 import type { StandardSchemaV1 } from "~/types";
 
@@ -143,7 +143,7 @@ export async function validateTaskEnv(
 
 /**
  * Validate every schema-declaring task in the run set before anything spawns.
- * Throws a single BundoError aggregating all issues.
+ * Throws a single OutdoError aggregating all issues.
  */
 export async function validateAll(
 	tasks: Task[],
@@ -161,7 +161,7 @@ export async function validateAll(
 	}
 	if (issues.length > 0) {
 		const lines = issues.map((i) => `  ${i.task}: ${i.path === "" ? "" : `${i.path} — `}${i.message}`);
-		throw new BundoError("env-invalid", `Environment validation failed:\n${lines.join("\n")}`, {
+		throw new OutdoError("env-invalid", `Environment validation failed:\n${lines.join("\n")}`, {
 			issues,
 		});
 	}

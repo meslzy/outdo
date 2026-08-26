@@ -3,7 +3,7 @@
 ## Watch mode
 
 ```sh
-bundo --watch build
+outdo --watch build
 ```
 
 Runs the plan once, then watches each task's `watch` globs (falling back to its `inputs`). On change:
@@ -23,7 +23,7 @@ Runs the plan once, then watches each task's `watch` globs (falling back to its 
 ```
 
 ::: tip Docker volumes, NFS, network drives
-File events don't propagate on some filesystems. `BUNDO_WATCH_POLL=1 bundo --watch …` switches to a polling backend (500ms mtime scan); bundo also falls back to it automatically if the OS watcher fails.
+File events don't propagate on some filesystems. `OUTDO_WATCH_POLL=1 outdo --watch …` switches to a polling backend (500ms mtime scan); outdo also falls back to it automatically if the OS watcher fails.
 :::
 
 ::: warning Self-triggering loops
@@ -55,10 +55,10 @@ Service semantics:
 - Under `--watch`, a service whose globs match a change is **stopped and restarted** (cooperative signal → 5s grace → tree kill), and its readiness probe runs again before dependents re-run
 
 ```sh
-bundo --watch dev     # edit a file → server restarts with a fresh process
+outdo --watch dev     # edit a file → server restarts with a fresh process
 ```
 
-Services can't declare `outputs` (they never "complete", so there is nothing to fingerprint) — bundo rejects that combination at load.
+Services can't declare `outputs` (they never "complete", so there is nothing to fingerprint) — outdo rejects that combination at load.
 
 ## Readiness probes
 
@@ -84,7 +84,7 @@ web: {
 },
 ```
 
-`bundo web` now brings the stack up **in dependency order, each layer waiting for real readiness**: postgres accepts connections → the API's health check passes → the web dev server prints its ready line.
+`outdo web` now brings the stack up **in dependency order, each layer waiting for real readiness**: postgres accepts connections → the API's health check passes → the web dev server prints its ready line.
 
 Exactly one probe per service:
 

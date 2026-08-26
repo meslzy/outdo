@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseCli } from "~/cli/parse";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 
 describe("parseCli", () => {
 	test("no args -> list", () => {
@@ -166,14 +166,14 @@ describe("parseCli", () => {
 	test("__complete words pass through raw", () => {
 		const { command } = parseCli([
 			"__complete",
-			"bundo",
+			"outdo",
 			"de",
 			"--flag",
 		]);
 		expect(command).toEqual({
 			kind: "complete",
 			words: [
-				"bundo",
+				"outdo",
 				"de",
 				"--flag",
 			],
@@ -186,7 +186,7 @@ describe("parseCli", () => {
 				"--nope",
 				"build",
 			]),
-		).toThrow(BundoError);
+		).toThrow(OutdoError);
 	});
 
 	test("invalid concurrency is a usage error", () => {

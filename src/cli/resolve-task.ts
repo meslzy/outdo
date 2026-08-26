@@ -5,7 +5,7 @@
  * — matching the run pipeline's fan-out rules without the fan-out.
  */
 
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import type { Project, Task } from "~/core/model";
 import { didYouMean } from "~/core/util";
 
@@ -39,7 +39,7 @@ export function resolveSingleTask(project: Project, name: string): Task {
 		return matches[0] as Task;
 	}
 	if (matches.length > 1) {
-		throw new BundoError(
+		throw new OutdoError(
 			"usage",
 			`"${name}" matches multiple workspace tasks (${matches.map((t) => t.name).join(", ")}). Use the qualified name.`,
 		);
@@ -47,9 +47,9 @@ export function resolveSingleTask(project: Project, name: string): Task {
 	const hint = didYouMean(name, [
 		...project.tasks.keys(),
 	]);
-	throw new BundoError(
+	throw new OutdoError(
 		"unknown-task",
-		`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "bundo" to list tasks.`,
+		`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "outdo" to list tasks.`,
 		{
 			task: name,
 		},

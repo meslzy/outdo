@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CONFIG_FILENAME, findConfig, loadProject } from "~/core/config";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { assertAcyclic } from "~/core/graph";
 import type { Project, Task } from "~/core/model";
 import { applyFilters, enumerateMembers, findWorkspaceRoot } from "~/core/workspaces";
@@ -24,9 +24,9 @@ export async function loadProjectFromCwd(filters: readonly string[] = []): Promi
 
 	if (!atWorkspaceRoot) {
 		if (configPath === undefined) {
-			throw new BundoError(
+			throw new OutdoError(
 				"config-not-found",
-				`No ${CONFIG_FILENAME} found in ${cwd} or any parent directory. Create one with "bundo init".`,
+				`No ${CONFIG_FILENAME} found in ${cwd} or any parent directory. Create one with "outdo init".`,
 			);
 		}
 		const project = await loadProject(configPath);
@@ -65,9 +65,9 @@ export async function loadProjectFromCwd(filters: readonly string[] = []): Promi
 	}
 
 	if (tasks.size === 0) {
-		throw new BundoError(
+		throw new OutdoError(
 			"config-not-found",
-			`No ${CONFIG_FILENAME} found at the workspace root or in any member package. Create one with "bundo init".`,
+			`No ${CONFIG_FILENAME} found at the workspace root or in any member package. Create one with "outdo init".`,
 		);
 	}
 

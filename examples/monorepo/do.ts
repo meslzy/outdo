@@ -1,6 +1,6 @@
-/** Workspace-root tasks. Run `bundo build` here to fan out to every member. */
+/** Workspace-root tasks. Run `outdo build` here to fan out to every member. */
 
-import { defineTasks } from "bundo";
+import { defineTasks } from "outdo";
 
 export default defineTasks({
 	"fmt:check": {

@@ -1,4 +1,4 @@
-import { defineTasks } from "bundo";
+import { defineTasks } from "outdo";
 
 export default defineTasks({
 	build: {

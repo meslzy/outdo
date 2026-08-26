@@ -17,7 +17,7 @@ interface Frame {
 	html: string;
 }
 
-const COMMAND = "bundo build";
+const COMMAND = "outdo build";
 
 const FRAMES: Frame[] = [
 	{
@@ -117,12 +117,12 @@ onBeforeUnmount(() => clearTimeout(timer));
 </script>
 
 <template>
-	<div class="bundo-terminal" aria-hidden="true">
+	<div class="outdo-terminal" aria-hidden="true">
 		<div class="bt-chrome">
 			<span class="bt-dot bt-red" />
 			<span class="bt-dot bt-yellow" />
 			<span class="bt-dot bt-green" />
-			<span class="bt-title">bundo</span>
+			<span class="bt-title">outdo</span>
 		</div>
 		<div class="bt-screen">
 			<div class="bt-line">
@@ -140,7 +140,7 @@ onBeforeUnmount(() => clearTimeout(timer));
 </template>
 
 <style scoped>
-.bundo-terminal {
+.outdo-terminal {
 	/* The hero slot (see custom.css) gives us the width; fill it. */
 	width: 100%;
 	max-width: 460px;

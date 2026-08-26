@@ -41,7 +41,7 @@ const explainJson = async (cwd: string, task: string, env?: Record<string, strin
 	return JSON.parse(result.stdout) as ExplainJson;
 };
 
-describe("bundo explain", () => {
+describe("outdo explain", () => {
 	test("cold cache: would-run with no-manifest; runs nothing", async () => {
 		const parsed = await explainJson(dir, "compile");
 		const compile = parsed.tasks.find((t) => t.name === "compile");
@@ -49,7 +49,7 @@ describe("bundo explain", () => {
 		expect(compile?.reasons?.some((r) => r.kind === "no-manifest")).toBe(true);
 		// Read-only: nothing executed, nothing cached.
 		expect(existsSync(join(dir, "out"))).toBe(false);
-		expect(existsSync(join(dir, ".bundo"))).toBe(false);
+		expect(existsSync(join(dir, ".outdo"))).toBe(false);
 	});
 
 	test("warm cache: would-skip; input edit names the changed file", async () => {
@@ -95,14 +95,14 @@ describe("bundo explain", () => {
 	});
 
 	test("backend detection matches the real run for the same flags", async () => {
-		// Human explain of a chain: a plain `bundo bundle` runs in-process.
+		// Human explain of a chain: a plain `outdo bundle` runs in-process.
 		const human = await runCli(dir, [
 			"explain",
 			"bundle",
 		]);
 		expect(human.stdout).toContain("sequential (in-process)");
 
-		// With --json the prediction reflects that `bundo --json bundle` itself
+		// With --json the prediction reflects that `outdo --json bundle` itself
 		// uses the child backend (the report needs a clean stdout) — the
 		// prediction must never diverge from a run with identical flags.
 		const chainJson = await explainJson(dir, "bundle");

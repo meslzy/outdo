@@ -1,7 +1,7 @@
 /** Global argv parsing. Task-specific flags are re-parsed later by argspec. */
 
 import { parseArgs } from "node:util";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import type { ColorMode } from "~/core/logger";
 
 export interface GlobalFlags {
@@ -209,7 +209,7 @@ function oneOf<T extends string>(value: string | undefined, allowed: readonly T[
 	if ((allowed as readonly string[]).includes(value)) {
 		return value as T;
 	}
-	throw new BundoError("usage", `Invalid value "${value}" for ${flag}. Expected one of: ${allowed.join(", ")}.`);
+	throw new OutdoError("usage", `Invalid value "${value}" for ${flag}. Expected one of: ${allowed.join(", ")}.`);
 }
 
 export function parseCli(argv: readonly string[]): ParsedCli {
@@ -293,7 +293,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		}));
 	} catch (error) {
 		const message = error instanceof Error ? error.message.split("\n")[0] : String(error);
-		throw new BundoError("usage", `${message} Run "bundo --help" for usage.`);
+		throw new OutdoError("usage", `${message} Run "outdo --help" for usage.`);
 	}
 
 	const flags: GlobalFlags = {
@@ -344,7 +344,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 						base: values.affected === "" ? undefined : (values.affected as string),
 					},
 		profile:
-			values.profile === undefined ? false : values.profile === "" ? ".bundo/trace.json" : (values.profile as string),
+			values.profile === undefined ? false : values.profile === "" ? ".outdo/trace.json" : (values.profile as string),
 	};
 
 	const printEnv = values["print-env"] as string | undefined;
@@ -360,7 +360,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		};
 	} else if (printEnv !== undefined) {
 		if (printEnv === "") {
-			throw new BundoError("usage", "--print-env requires a task name.");
+			throw new OutdoError("usage", "--print-env requires a task name.");
 		}
 		command = {
 			kind: "print-env",
@@ -390,7 +390,7 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 		};
 	} else if (first === "explain") {
 		if (positionals.length !== 1) {
-			throw new BundoError("usage", "explain requires exactly one task name.");
+			throw new OutdoError("usage", "explain requires exactly one task name.");
 		}
 		command = {
 			kind: "explain",
@@ -461,7 +461,7 @@ function parseConcurrency(value: string | undefined): number | undefined {
 	}
 	const n = Number.parseInt(value, 10);
 	if (!Number.isFinite(n) || n < 1 || String(n) !== value.trim()) {
-		throw new BundoError("usage", `Invalid --concurrency "${value}" — expected a positive integer.`);
+		throw new OutdoError("usage", `Invalid --concurrency "${value}" — expected a positive integer.`);
 	}
 	return n;
 }

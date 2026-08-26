@@ -48,13 +48,13 @@ describe("expandValue", () => {
 	const lookup = (name: string) =>
 		({
 			HOME: "/home/u",
-			APP: "bundo",
+			APP: "outdo",
 		})[name];
 
 	test("dollar-var and dollar-brace-var", () => {
-		expect(expandValue("$APP at $HOME", lookup)).toBe("bundo at /home/u");
+		expect(expandValue("$APP at $HOME", lookup)).toBe("outdo at /home/u");
 		// biome-ignore lint/suspicious/noTemplateCurlyInString: literal test input
-		expect(expandValue("${APP}-x", lookup)).toBe("bundo-x");
+		expect(expandValue("${APP}-x", lookup)).toBe("outdo-x");
 	});
 
 	test("unknown vars become empty", () => {

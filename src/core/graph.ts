@@ -1,6 +1,6 @@
 /** Pure DAG utilities over the normalized task map. */
 
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import type { DepEdge, Task } from "~/core/model";
 
 const FALSY_CONDITION_VALUES = new Set([
@@ -42,7 +42,7 @@ export function applyConditions(
 				return edgeActive(edge, env);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				throw new BundoError("config-invalid", `Task "${name}": condition on dep "${edge.task}" threw: ${message}`);
+				throw new OutdoError("config-invalid", `Task "${name}": condition on dep "${edge.task}" threw: ${message}`);
 			}
 		});
 		out.set(name, {
@@ -69,7 +69,7 @@ export function assertAcyclic(tasks: ReadonlyMap<string, Task>): void {
 				...stack.slice(start),
 				name,
 			];
-			throw new BundoError("cycle", `Dependency cycle: ${cycle.join(" -> ")}`, {
+			throw new OutdoError("cycle", `Dependency cycle: ${cycle.join(" -> ")}`, {
 				cycle,
 			});
 		}

@@ -19,7 +19,7 @@ import type { CacheDecision } from "~/core/cache";
 import { cacheable, checkCache, writeCache } from "~/core/cache";
 import { startChildTask } from "~/core/child";
 import { resolveEnv, validateAll } from "~/core/envresolve";
-import { BundoError, EXIT } from "~/core/errors";
+import { EXIT, OutdoError } from "~/core/errors";
 import { buildCtx, runTaskInProcess } from "~/core/executor";
 import type { ChangedResult } from "~/core/gitaffected";
 import { detectChanged, selectAffected } from "~/core/gitaffected";
@@ -50,13 +50,13 @@ interface AffectedInfo {
 
 export async function runCommand(command: RunCommand, flags: GlobalFlags): Promise<number> {
 	if (flags.watch && flags.json) {
-		throw new BundoError("usage", "--watch cannot be combined with --json (watch is a streaming mode).");
+		throw new OutdoError("usage", "--watch cannot be combined with --json (watch is a streaming mode).");
 	}
 	if (flags.watch && flags.profile !== false) {
-		throw new BundoError("usage", "--watch cannot be combined with --profile.");
+		throw new OutdoError("usage", "--watch cannot be combined with --profile.");
 	}
 	if (flags.watch && flags.affected !== false) {
-		throw new BundoError("usage", "--watch cannot be combined with --affected.");
+		throw new OutdoError("usage", "--watch cannot be combined with --affected.");
 	}
 
 	const loaded = await loadProjectFromCwd(flags.filter);
@@ -81,7 +81,7 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 	// must not silently reroute flags, and a --dry preview must not turn into
 	// a usage error just because git dropped the target.
 	if (command.taskArgv.length > 0 && requestedAll.length !== 1) {
-		throw new BundoError("usage", "Task flags require exactly one task on the command line.");
+		throw new OutdoError("usage", "Task flags require exactly one task on the command line.");
 	}
 	const target = requestedAll.length === 1 ? (requestedAll[0] as Task) : undefined;
 	if (target !== undefined && command.taskArgv.length > 0 && wantsTaskHelp(target, command.taskArgv)) {
@@ -165,7 +165,7 @@ export async function runCommand(command: RunCommand, flags: GlobalFlags): Promi
 }
 
 /**
- * Backend choice, shared with `bundo explain` so its prediction can never
+ * Backend choice, shared with `outdo explain` so its prediction can never
  * drift from the real run. Timeouts need the child backend to be enforceable
  * (in-process abort is cooperative only — a run body that ignores ctx.signal
  * would hang the whole run forever); output-shaping flags need the
@@ -406,7 +406,7 @@ async function runSequential(state: SharedRunState): Promise<number> {
 			process.exit(EXIT.interrupted);
 		}
 		interrupted = true;
-		aborter.abort(new BundoError("interrupted", "Interrupted."));
+		aborter.abort(new OutdoError("interrupted", "Interrupted."));
 	};
 	process.on("SIGINT", onSigint);
 
@@ -419,11 +419,11 @@ async function runSequential(state: SharedRunState): Promise<number> {
 		for (let i = 0; i < state.planned.length; i++) {
 			const task = state.planned[i] as Task;
 			if (interrupted) {
-				throw new BundoError("interrupted", "Interrupted.");
+				throw new OutdoError("interrupted", "Interrupted.");
 			}
 			const decision = await decideCache(state, task);
 			if (interrupted) {
-				throw new BundoError("interrupted", "Interrupted.");
+				throw new OutdoError("interrupted", "Interrupted.");
 			}
 			if (cacheable(task) && decision.hit) {
 				const now = performance.now();
@@ -516,7 +516,7 @@ async function runSequential(state: SharedRunState): Promise<number> {
 					`${yellow("↻")} ${task.name} failed — retrying (attempt ${attempt + 1}/${max})${delay > 0 ? dim(` in ${delay}ms`) : ""}`,
 				);
 				if (delay > 0 && !(await sleepAbortable(delay, aborter.signal))) {
-					throw new BundoError("interrupted", "Interrupted.");
+					throw new OutdoError("interrupted", "Interrupted.");
 				}
 			}
 
@@ -548,7 +548,7 @@ async function runSequential(state: SharedRunState): Promise<number> {
 	});
 	console.error(formatSummary(report));
 	if (failedResult !== undefined) {
-		throw new BundoError(
+		throw new OutdoError(
 			"task-failed",
 			failureMessage([
 				failedResult,
@@ -608,7 +608,7 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 		});
 
 		if (interrupted) {
-			throw new BundoError("interrupted", "Interrupted.");
+			throw new OutdoError("interrupted", "Interrupted.");
 		}
 
 		const report = buildReport({
@@ -626,7 +626,7 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 			...outcome.results.values(),
 		].filter((r) => r.status === "failed");
 		if (failedResults.length > 0 || outcome.failed) {
-			throw new BundoError("task-failed", failureMessage(failedResults), {
+			throw new OutdoError("task-failed", failureMessage(failedResults), {
 				failed: failedResults.map((r) => ({
 					task: r.name,
 					error: r.error,
@@ -642,10 +642,10 @@ async function runParallel(state: SharedRunState, flags: GlobalFlags): Promise<n
 				].map((handle) => handle.result),
 			);
 			if (interrupted || lifecycle.shuttingDown) {
-				throw new BundoError("interrupted", "Interrupted.");
+				throw new OutdoError("interrupted", "Interrupted.");
 			}
 			await lifecycle.shutdown();
-			throw new BundoError(
+			throw new OutdoError(
 				"task-failed",
 				`Service "${exited.name}" exited unexpectedly (${exited.error ?? "no error"}).`,
 				{
@@ -697,7 +697,7 @@ function failureMessage(failed: TaskResult[]): string {
 
 function resolveRequested(project: Project, names: string[]): Task[] {
 	if (names.length === 0) {
-		throw new BundoError("usage", "No task given.");
+		throw new OutdoError("usage", "No task given.");
 	}
 	const out: Task[] = [];
 	const seen = new Set<string>();
@@ -731,9 +731,9 @@ function resolveRequested(project: Project, names: string[]): Task[] {
 		const hint = didYouMean(name, [
 			...project.tasks.keys(),
 		]);
-		throw new BundoError(
+		throw new OutdoError(
 			"unknown-task",
-			`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "bundo" to list tasks.`,
+			`Unknown task "${name}".${hint === undefined ? "" : ` Did you mean "${hint}"?`} Run "outdo" to list tasks.`,
 			{
 				task: name,
 			},

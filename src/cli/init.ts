@@ -1,11 +1,11 @@
-/** `bundo init`: scaffold a starter do.ts and gitignore the cache dir. */
+/** `outdo init`: scaffold a starter do.ts and gitignore the cache dir. */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BundoError, EXIT } from "~/core/errors";
+import { EXIT, OutdoError } from "~/core/errors";
 import { green } from "~/core/logger";
 
-const TEMPLATE = `import { defineTasks, task } from "bundo";
+const TEMPLATE = `import { defineTasks, task } from "outdo";
 
 export default defineTasks({
 	dev: {
@@ -45,7 +45,7 @@ export default defineTasks({
 export async function initCommand(): Promise<number> {
 	const target = join(process.cwd(), "do.ts");
 	if (existsSync(target)) {
-		throw new BundoError("usage", `${target} already exists — refusing to overwrite.`);
+		throw new OutdoError("usage", `${target} already exists — refusing to overwrite.`);
 	}
 	await Bun.write(target, TEMPLATE);
 	console.log(`${green("✓")} created do.ts`);
@@ -53,15 +53,15 @@ export async function initCommand(): Promise<number> {
 	const gitignore = join(process.cwd(), ".gitignore");
 	if (existsSync(gitignore)) {
 		const text = readFileSync(gitignore, "utf8");
-		if (!text.includes(".bundo")) {
-			await Bun.write(gitignore, `${text.trimEnd()}\n.bundo/\n`);
-			console.log(`${green("✓")} added .bundo/ to .gitignore`);
+		if (!text.includes(".outdo")) {
+			await Bun.write(gitignore, `${text.trimEnd()}\n.outdo/\n`);
+			console.log(`${green("✓")} added .outdo/ to .gitignore`);
 		}
 	} else {
-		await Bun.write(gitignore, ".bundo/\n");
-		console.log(`${green("✓")} created .gitignore with .bundo/`);
+		await Bun.write(gitignore, ".outdo/\n");
+		console.log(`${green("✓")} created .gitignore with .outdo/`);
 	}
 
-	console.log('\nrun "bundo" to list tasks.');
+	console.log('\nrun "outdo" to list tasks.');
 	return EXIT.ok;
 }

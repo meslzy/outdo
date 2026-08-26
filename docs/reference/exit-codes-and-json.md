@@ -28,7 +28,7 @@ Codes: `usage`, `config-not-found`, `config-invalid`, `unknown-task`, `cycle`, `
 
 ## Run report (`--json`)
 
-`bundo <task> --json` redirects all task logs to stderr and prints exactly one JSON document on stdout — on success *and* on failure (exit code and stderr error JSON are unchanged):
+`outdo <task> --json` redirects all task logs to stderr and prints exactly one JSON document on stdout — on success *and* on failure (exit code and stderr error JSON are unchanged):
 
 ```json
 {
@@ -135,7 +135,7 @@ Dependencies first (topological order); `cached: true` means the task would be s
 }
 ```
 
-Edges point dependency → dependent, with condition/optional metadata (`"if": "<fn>"` for predicates). `bundo graph` (no flag) prints mermaid — conditional edges render dashed; `--dot` prints graphviz.
+Edges point dependency → dependent, with condition/optional metadata (`"if": "<fn>"` for predicates). `outdo graph` (no flag) prints mermaid — conditional edges render dashed; `--dot` prints graphviz.
 
 ## `--print-env <task> --json`
 

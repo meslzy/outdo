@@ -43,7 +43,7 @@ const baseInputs = (): FingerprintInputs => ({
 });
 
 beforeEach(() => {
-	dir = mkdtempSync(join(tmpdir(), "bundo-cache-unit-"));
+	dir = mkdtempSync(join(tmpdir(), "outdo-cache-unit-"));
 	mkdirSync(join(dir, "src"), {
 		recursive: true,
 	});
@@ -168,7 +168,7 @@ describe("checkCache", () => {
 	test("writeCache never throws, even with an unwritable cache dir", async () => {
 		const task = makeTask();
 		const decision = await checkCache(dir, task, baseInputs(), false);
-		// rootDir points at a FILE — .bundo/cache creation must fail internally.
+		// rootDir points at a FILE — .outdo/cache creation must fail internally.
 		const bogusRoot = join(dir, "src", "a.txt");
 		await expect(writeCache(bogusRoot, task, decision)).resolves.toBeUndefined();
 	});

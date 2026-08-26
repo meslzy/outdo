@@ -67,7 +67,7 @@ export function renderList(project: Project): string {
 	}
 
 	lines.push("");
-	lines.push(dim('run a task with "bundo <task>" — details with "bundo ls --json"'));
+	lines.push(dim('run a task with "outdo <task>" — details with "outdo ls --json"'));
 	return lines.join("\n");
 }
 

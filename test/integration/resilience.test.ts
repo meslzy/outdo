@@ -93,7 +93,7 @@ describe("service readiness", () => {
 				"uses:port",
 			],
 			{
-				BUNDO_TEST_PORT: String(port),
+				OUTDO_TEST_PORT: String(port),
 			},
 		);
 		try {
@@ -111,7 +111,7 @@ describe("service readiness", () => {
 				"uses:url",
 			],
 			{
-				BUNDO_TEST_URL: `http://127.0.0.1:${port}/health`,
+				OUTDO_TEST_URL: `http://127.0.0.1:${port}/health`,
 			},
 		);
 		try {

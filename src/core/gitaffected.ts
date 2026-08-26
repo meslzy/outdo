@@ -7,7 +7,7 @@
 
 import { realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { compile, matches } from "~/core/globs";
 import { dependents } from "~/core/graph";
 import type { Project, Task } from "~/core/model";
@@ -60,7 +60,7 @@ async function git(args: string[], cwd: string): Promise<GitOutput> {
 			},
 		);
 	} catch {
-		throw new BundoError("git", "--affected requires the git CLI, which was not found on PATH.");
+		throw new OutdoError("git", "--affected requires the git CLI, which was not found on PATH.");
 	}
 	const [stdout, stderr, code] = await Promise.all([
 		new Response(proc.stdout as ReadableStream).text(),
@@ -97,7 +97,7 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 		rootDir,
 	);
 	if (!top.ok) {
-		throw new BundoError("git", `--affected requires a git repository (${top.stderr || "not a git repository"}).`);
+		throw new OutdoError("git", `--affected requires a git repository (${top.stderr || "not a git repository"}).`);
 	}
 	const gitRoot = canon(top.stdout);
 
@@ -105,7 +105,7 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 	let diffArgs: string[] | undefined;
 	if (baseArg !== undefined && baseArg !== "") {
 		if (!(await revExists(baseArg, rootDir))) {
-			throw new BundoError("git", `--affected: unknown revision "${baseArg}".`);
+			throw new OutdoError("git", `--affected: unknown revision "${baseArg}".`);
 		}
 		base = baseArg;
 		diffArgs = [
@@ -176,7 +176,7 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 	// silently "nothing affected" on a shallow CI clone would skip real work.
 	const collect = (out: GitOutput, what: string): void => {
 		if (!out.ok) {
-			throw new BundoError("git", `--affected: ${what} failed (${out.stderr || "no error output"}).`);
+			throw new OutdoError("git", `--affected: ${what} failed (${out.stderr || "no error output"}).`);
 		}
 		for (const line of out.stdout.split("\n")) {
 			if (line !== "") {
@@ -205,7 +205,7 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 				"--exclude-standard",
 				// ls-files output is cwd-relative by default; --full-name makes it
 				// toplevel-relative like `diff --name-only`, so resolving against
-				// gitRoot is correct even when bundo runs in a subdirectory.
+				// gitRoot is correct even when outdo runs in a subdirectory.
 				"--full-name",
 			],
 			rootDir,

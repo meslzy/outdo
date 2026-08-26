@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { applyConditions, edgeActive } from "~/core/graph";
 import type { DepEdge, Task } from "~/core/model";
 
@@ -151,6 +151,6 @@ describe("applyConditions", () => {
 				]),
 			],
 		]);
-		expect(() => applyConditions(tasks, {})).toThrow(BundoError);
+		expect(() => applyConditions(tasks, {})).toThrow(OutdoError);
 	});
 });

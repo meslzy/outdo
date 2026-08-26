@@ -1,6 +1,6 @@
 # Workspaces
 
-At a [Bun workspace](https://bun.com/docs/install/workspaces) root, bundo merges the root `do.ts` with every member package's `do.ts`. Member tasks are namespaced **`pkg#task`**:
+At a [Bun workspace](https://bun.com/docs/install/workspaces) root, outdo merges the root `do.ts` with every member package's `do.ts`. Member tasks are namespaced **`pkg#task`**:
 
 ```txt
 my-monorepo/
@@ -17,9 +17,9 @@ my-monorepo/
 A bare task name runs it **everywhere it's defined** — root and members — respecting each member's own dependencies and working directory:
 
 ```sh
-bundo build           # root build + api#build + lib#build + web#build, in parallel
-bundo api#build       # exactly one member
-bundo --dry=json build  # inspect the fan-out before running it
+outdo build           # root build + api#build + lib#build + web#build, in parallel
+outdo api#build       # exactly one member
+outdo --dry=json build  # inspect the fan-out before running it
 ```
 
 Member `deps` stay **file-local**: `api#build` depending on `["compile"]` means `api#compile`, never another package's task. Cross-package ordering comes from `--filter`'s dependency closures (below), not task deps.
@@ -29,27 +29,27 @@ Member `deps` stay **file-local**: `api#build` depending on `["compile"]` means 
 ::: code-group
 
 ```sh [exact]
-bundo -F api build        # just the api package
+outdo -F api build        # just the api package
 ```
 
 ```sh [glob]
-bundo -F '@acme/*' build  # name glob
+outdo -F '@acme/*' build  # name glob
 ```
 
 ```sh [path]
-bundo -F ./packages/api build
+outdo -F ./packages/api build
 ```
 
 ```sh [...deps]
-bundo -F ...api build     # api + everything api depends on (workspace deps)
+outdo -F ...api build     # api + everything api depends on (workspace deps)
 ```
 
 ```sh [dependents...]
-bundo -F lib... build     # lib + everything that depends on lib
+outdo -F lib... build     # lib + everything that depends on lib
 ```
 
 ```sh [combined]
-bundo -F api -F web build # filters union
+outdo -F api -F web build # filters union
 ```
 
 :::
@@ -65,9 +65,9 @@ When filters are given, **root tasks are excluded** — filters select packages.
 On a big graph, most CI time goes to packages nothing touched. `--affected` selects only the requested tasks that git says could have changed:
 
 ```sh
-bundo build --affected                 # vs the merge-base with origin's default branch
-bundo test --affected=origin/main      # explicit base rev
-bundo build --affected -F '*'          # composes with filters
+outdo build --affected                 # vs the merge-base with origin's default branch
+outdo test --affected=origin/main      # explicit base rev
+outdo build --affected -F '*'          # composes with filters
 ```
 
 ```txt
@@ -81,17 +81,17 @@ A task counts as affected when:
 - it lives in a package that (transitively) **depends on** a changed package — `packages/ui` changes ripple to every app that consumes it
 - one of its task-graph dependencies is affected
 
-The changed set includes committed diffs vs the base, staged/unstaged edits, and untracked files. Kept tasks still run with their full dependency subgraphs — unaffected deps are just fast cache hits. When nothing is affected, bundo prints so and exits `0`.
+The changed set includes committed diffs vs the base, staged/unstaged edits, and untracked files. Kept tasks still run with their full dependency subgraphs — unaffected deps are just fast cache hits. When nothing is affected, outdo prints so and exits `0`.
 
 `--dry=json` adds an `affected: { base, kept, dropped }` block so you can audit the selection without running anything.
 
 ## Member-local mode
 
-Run bundo from **inside** a member directory and it stays local — the nearest `do.ts` wins, tasks keep their bare names, and nothing fans out:
+Run outdo from **inside** a member directory and it stays local — the nearest `do.ts` wins, tasks keep their bare names, and nothing fans out:
 
 ```sh
 cd packages/api
-bundo build     # just api's build
+outdo build     # just api's build
 ```
 
 The env cascade in workspace mode resolves from the **workspace root** (one `.env` family for the repo).

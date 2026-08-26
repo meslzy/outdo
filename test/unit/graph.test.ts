@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { assertAcyclic, dependents, subgraphFor, topoOrder } from "~/core/graph";
 import type { Task } from "~/core/model";
 
@@ -65,9 +65,9 @@ describe("assertAcyclic", () => {
 			assertAcyclic(tasks);
 			expect.unreachable();
 		} catch (error) {
-			expect(error).toBeInstanceOf(BundoError);
-			expect((error as BundoError).code).toBe("cycle");
-			expect((error as BundoError).message).toContain("a -> b -> c -> a");
+			expect(error).toBeInstanceOf(OutdoError);
+			expect((error as OutdoError).code).toBe("cycle");
+			expect((error as OutdoError).message).toContain("a -> b -> c -> a");
 		}
 	});
 

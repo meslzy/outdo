@@ -11,7 +11,7 @@ interface DagNode {
 	runMs: number;
 }
 
-// bundo's own graph: three parallel tasks feeding `check`.
+// outdo's own graph: three parallel tasks feeding `check`.
 const NODES: DagNode[] = [
 	{
 		id: "typecheck",

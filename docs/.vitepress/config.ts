@@ -2,9 +2,9 @@ import { defineConfig } from "vitepress";
 import llmstxt from "vitepress-plugin-llms";
 
 export default defineConfig({
-	title: "bundo",
+	title: "outdo",
 	description: "The typed task runner for Bun — tasks in a typed do.ts, zero runtime dependencies.",
-	base: "/bundo/",
+	base: "/outdo/",
 	appearance: "dark",
 	lastUpdated: true,
 	vite: {
@@ -12,7 +12,7 @@ export default defineConfig({
 			// Emits llms.txt (index) + llms-full.txt (full docs) into the built
 			// site so AI agents can ingest the documentation in one request.
 			llmstxt({
-				// The plugin appends the site `base` (/bundo/) itself.
+				// The plugin appends the site `base` (/outdo/) itself.
 				domain: "https://meslzy.github.io",
 			}),
 		],
@@ -23,7 +23,7 @@ export default defineConfig({
 			{
 				rel: "icon",
 				type: "image/svg+xml",
-				href: "/bundo/logo.svg",
+				href: "/outdo/logo.svg",
 			},
 		],
 		[
@@ -52,7 +52,7 @@ export default defineConfig({
 			"meta",
 			{
 				property: "og:title",
-				content: "bundo — the typed task runner for Bun",
+				content: "outdo — the typed task runner for Bun",
 			},
 		],
 		[
@@ -89,7 +89,7 @@ export default defineConfig({
 			},
 			{
 				text: "v0.0.1",
-				link: "https://github.com/meslzy/bundo/releases",
+				link: "https://github.com/meslzy/outdo/releases",
 			},
 		],
 		sidebar: [
@@ -101,8 +101,8 @@ export default defineConfig({
 						link: "/guide/getting-started",
 					},
 					{
-						text: "Why bundo?",
-						link: "/guide/why-bundo",
+						text: "Why outdo?",
+						link: "/guide/why-outdo",
 					},
 					{
 						text: "Tasks & Dependencies",
@@ -159,11 +159,11 @@ export default defineConfig({
 		socialLinks: [
 			{
 				icon: "github",
-				link: "https://github.com/meslzy/bundo",
+				link: "https://github.com/meslzy/outdo",
 			},
 		],
 		editLink: {
-			pattern: "https://github.com/meslzy/bundo/edit/main/docs/:path",
+			pattern: "https://github.com/meslzy/outdo/edit/main/docs/:path",
 			text: "Edit this page on GitHub",
 		},
 		footer: {

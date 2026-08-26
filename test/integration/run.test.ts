@@ -7,7 +7,7 @@ const FIXTURES = join(import.meta.dir, "..", "fixtures");
 const BASIC = join(FIXTURES, "basic");
 const ENV = join(FIXTURES, "env-cascade");
 
-describe("bundo run (sequential)", () => {
+describe("outdo run (sequential)", () => {
 	test("runs a task and reports success", async () => {
 		const { exitCode, stdout, stderr } = await runCli(BASIC, [
 			"build",
@@ -111,11 +111,11 @@ describe("env cascade + validation", () => {
 		);
 		expect(exitCode).toBe(0);
 		const env = JSON.parse(stdout);
-		expect(env.APP_NAME).toBe("bundo-fixture");
+		expect(env.APP_NAME).toBe("outdo-fixture");
 		expect(env.DATABASE_URL).toBe("postgres://localhost/local-override"); // .env.local wins
 		expect(env.LOCAL_ONLY).toBe("yes");
-		expect(env.COMPOSED).toBe("bundo-fixture-suffix"); // ${APP_NAME} expanded
-		expect(env.LITERAL).toBe("bundo-fixture stays literal"); // Bun expands even in single quotes
+		expect(env.COMPOSED).toBe("outdo-fixture-suffix"); // ${APP_NAME} expanded
+		expect(env.LITERAL).toBe("outdo-fixture stays literal"); // Bun expands even in single quotes
 	});
 
 	test(".env.local beats .env.{NODE_ENV}", async () => {
@@ -227,6 +227,6 @@ describe("passthrough routing (M4)", () => {
 			"-h",
 		]);
 		expect(exitCode).toBe(0);
-		expect(stdout).toContain("Usage: bundo greet");
+		expect(stdout).toContain("Usage: outdo greet");
 	});
 });

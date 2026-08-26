@@ -1,13 +1,13 @@
 # Changelog
 
-All notable changes to bundo are documented here. The format follows
+All notable changes to outdo are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com); versions follow
 [SemVer](https://semver.org) (0.x — the API may still move).
 
 Each published version gets a git tag (`v<version>`) and a GitHub Release
 created automatically by the release workflow.
 
-## 0.0.1 - 2026-08-25
+## 0.0.1 - 2026-08-26
 
 First release.
 
@@ -35,7 +35,7 @@ First release.
 
 - Fingerprint cache (content-hashed inputs with an mtime+size fast path,
   task definition, env output, args, dep fingerprints, dep data outputs).
-- `bundo explain <task>` — per-component cache diagnosis without running.
+- `outdo explain <task>` — per-component cache diagnosis without running.
 
 ### Monorepos
 

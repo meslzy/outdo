@@ -1,6 +1,6 @@
-# bundo
+# outdo
 
-TypeScript-native task runner CLI, **Bun-only** (`engines.bun >= 1.4.0`), ESM. Users author a typed `do.ts`; bundo runs it as a DAG.
+TypeScript-native task runner CLI, **Bun-only** (`engines.bun >= 1.4.0`), ESM. Users author a typed `do.ts`; outdo runs it as a DAG.
 
 **IMPORTANT: zero runtime dependencies.** Never add one — devDependencies only. Use Bun built-ins (`$`, `Bun.spawn`, `Bun.Glob`, `Bun.hash`, `node:util parseArgs`). Never use `node`/`npm`/`npx` — always `bun`/`bunx`.
 
@@ -19,7 +19,7 @@ Definition of done: typecheck, `bun test`, and `biome check` all green. Iterate 
 
 - `src/cli.ts` — bin entry. Hot path statically imports only `cli/parse`, `core/errors`, `core/logger`; every command is a dynamic import. Keep it that way (startup budget).
 - `src/cli/run.ts` — **hybrid backend choice**: pure dependency chains run in-process with inherited stdio; anything parallelizable, persistent, `--watch`, or `--isolate` uses child processes. Both share `makeStart`/`buildCtx` — keep the backends behaviorally identical.
-- `bundo __worker` — hidden child-process entry (`src/cli/worker.ts`), driven over IPC by `src/core/child.ts`. Workers re-import the task's `sourceConfig` and run its `localName`. It must exit via `process.exit` (the open IPC channel otherwise keeps it alive). Keep `__worker`/`__complete` out of help and completion output.
+- `outdo __worker` — hidden child-process entry (`src/cli/worker.ts`), driven over IPC by `src/core/child.ts`. Workers re-import the task's `sourceConfig` and run its `localName`. It must exit via `process.exit` (the open IPC channel otherwise keeps it alive). Keep `__worker`/`__complete` out of help and completion output.
 - `src/core/lifecycle.ts` — cooperative IPC abort → 5s grace → tree kill (`taskkill /T /F` on Windows, detached+`kill(-pid)` on POSIX). Use clearable `setTimeout`, never `Bun.sleep`, in races — a pending sleep holds the event loop.
 - `src/core/envfile.ts` + `envresolve.ts` — dotenv cascade **byte-matched to Bun 1.4** (verified: `$VAR` expands even in single quotes; `\$` always unescapes). Don't "fix" this to dotenv-spec behavior. Provenance (which file set each key) must survive any change.
 - `src/core/cache.ts` — fingerprints are computed at task **start time** (via `decideCache`), never upfront: a task's inputs may be its dep's outputs.
@@ -31,7 +31,7 @@ Definition of done: typecheck, `bun test`, and `biome check` all green. Iterate 
 - `~/*` path alias → `src/*` (but `src/index.ts`/`src/types.ts` use relative imports — their emitted declarations must not contain `~`).
 - `verbatimModuleSyntax`: use `import type` for types. `noUncheckedIndexedAccess` is on: index access yields `T | undefined`.
 - `src/types.ts` is type-only — no runtime imports there. StandardSchemaV1 is inlined; don't add a schema library.
-- Errors: throw `BundoError(code, message, detail)`; exit codes 0/1/2/3/130 map from the code (`src/core/errors.ts`).
+- Errors: throw `OutdoError(code, message, detail)`; exit codes 0/1/2/3/130 map from the code (`src/core/errors.ts`).
 - Commit messages: no Co-Authored-By or session trailers.
 
 ## Testing

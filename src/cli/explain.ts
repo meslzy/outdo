@@ -1,9 +1,9 @@
 /**
- * `bundo explain <task>` — a read-only account of what a run would do: the
+ * `outdo explain <task>` — a read-only account of what a run would do: the
  * planned subgraph with per-task cache verdicts (and *why* a task would
  * re-run, by fingerprint component), input/output glob matches, env schema
  * state, resilience settings, and the backend that would execute the plan.
- * Never runs tasks and never writes to .bundo.
+ * Never runs tasks and never writes to .outdo.
  */
 
 import { loadProjectFromCwd } from "~/cli/load";

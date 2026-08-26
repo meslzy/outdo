@@ -1,5 +1,5 @@
 /**
- * Child-process execution backend: each task runs in its own `bundo __worker`
+ * Child-process execution backend: each task runs in its own `outdo __worker`
  * process with piped stdio (multiplexed by the parent) and IPC coordination.
  */
 
@@ -31,7 +31,7 @@ interface ResultMessage {
 	output?: unknown;
 }
 
-/** The bin/entry that `bundo` itself was started with (cli.ts in dev, dist/cli.js published). */
+/** The bin/entry that `outdo` itself was started with (cli.ts in dev, dist/cli.js published). */
 const SELF = resolve(process.argv[1] as string);
 
 export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTask {

@@ -44,7 +44,7 @@ describe("--profile parsing", () => {
 			"--profile",
 			"build",
 		]);
-		expect(flags.profile).toBe(".bundo/trace.json");
+		expect(flags.profile).toBe(".outdo/trace.json");
 	});
 
 	test("--profile=<file> sets the path", () => {

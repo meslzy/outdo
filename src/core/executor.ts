@@ -1,7 +1,7 @@
 /** Task context construction and the in-process execution backend. */
 
 import { $ } from "bun";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 import { dim, prefixColor, red, yellow } from "~/core/logger";
 import type { Task } from "~/core/model";
 import type { TaskCtx, TaskLogger } from "~/types";
@@ -50,7 +50,7 @@ export function makeTaskLogger(name: string): TaskLogger {
 		warn: (...args) => console.error(prefix, yellow("warn"), ...args),
 		error: (...args) => console.error(prefix, red("error"), ...args),
 		debug: (...args) => {
-			if (process.env.BUNDO_LOG === "debug") {
+			if (process.env.OUTDO_LOG === "debug") {
 				console.error(prefix, dim("debug"), ...args);
 			}
 		},
@@ -85,7 +85,7 @@ export function normalizeOutput(task: Task, value: unknown): unknown {
 		text = JSON.stringify(value);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new BundoError("task-failed", `Task "${task.name}" returned a non-JSON-serializable output: ${message}`, {
+		throw new OutdoError("task-failed", `Task "${task.name}" returned a non-JSON-serializable output: ${message}`, {
 			task: task.name,
 		});
 	}
@@ -95,7 +95,7 @@ export function normalizeOutput(task: Task, value: unknown): unknown {
 
 /**
  * Run one task in this process. Returns the task's JSON-normalized data
- * output. Throws BundoError("task-failed") on failure.
+ * output. Throws OutdoError("task-failed") on failure.
  */
 export async function runTaskInProcess(
 	task: Task,
@@ -108,11 +108,11 @@ export async function runTaskInProcess(
 	try {
 		value = await task.run(ctx);
 	} catch (error) {
-		if (error instanceof BundoError) {
+		if (error instanceof OutdoError) {
 			throw error;
 		}
 		const message = error instanceof Error ? error.message : String(error);
-		throw new BundoError("task-failed", `Task "${task.name}" failed: ${message}`, {
+		throw new OutdoError("task-failed", `Task "${task.name}" failed: ${message}`, {
 			task: task.name,
 			cause: message,
 		});

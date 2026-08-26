@@ -14,7 +14,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { Glob } from "bun";
-import { BundoError } from "~/core/errors";
+import { OutdoError } from "~/core/errors";
 
 interface PackageJson {
 	name?: string;
@@ -52,7 +52,7 @@ function readPkg(path: string): PackageJson | undefined {
 /**
  * Extract valid workspace glob patterns from a parsed package.json. The single
  * source of truth for "is this a workspace root" — findConfig's upward walk
- * must agree with findWorkspaceRoot, or bundo reports "no do.ts" when the real
+ * must agree with findWorkspaceRoot, or outdo reports "no do.ts" when the real
  * one sits above a package.json with a malformed `workspaces` key.
  */
 export function workspacePatternsOf(pkg: unknown): string[] | undefined {
@@ -208,7 +208,7 @@ export function applyFilters(
 
 	const result = members.filter((m) => selected.has(m.name));
 	if (result.length === 0) {
-		throw new BundoError("usage", `--filter ${filters.join(" ")} matched no workspace packages.`, {
+		throw new OutdoError("usage", `--filter ${filters.join(" ")} matched no workspace packages.`, {
 			filters,
 		});
 	}
