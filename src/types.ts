@@ -78,6 +78,8 @@ export interface ArgSpec {
 	readonly description?: string;
 	/** Allowed values (string flags). Shown in help and offered by Tab completion. */
 	readonly choices?: readonly string[];
+	/** Values offered by Tab completion and the picker, without being enforced. */
+	readonly suggest?: readonly string[];
 }
 
 /** A flag declaration: an `ArgSpec`, or any Standard Schema (zod, valibot, ...). */

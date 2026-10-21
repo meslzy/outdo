@@ -1,0 +1,11 @@
+{
+	"name": "scripts-only",
+	"private": true,
+	"scripts": {
+		"hello": "echo SCRIPT-HELLO",
+		"args": "echo SCRIPT-ARGS",
+		"prepare": "echo never-a-task",
+		"prehello": "echo PRE-HELLO",
+		"self": "outdo hello"
+	}
+}

@@ -161,10 +161,21 @@ export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): P
 	}
 
 	if (flags.ci) {
-		reportCi(command.tasks, main.report, [
-			...main.failures,
-			...cleanupFailures,
-		]);
+		const errors = new Map<string, string>();
+		for (const r of main.results.values()) {
+			if (r.error !== undefined) {
+				errors.set(r.name, r.error);
+			}
+		}
+		reportCi(
+			command.tasks,
+			main.report,
+			[
+				...main.failures,
+				...cleanupFailures,
+			],
+			errors,
+		);
 	}
 	if (error !== undefined) {
 		throw error;
@@ -177,12 +188,17 @@ function reportCi(
 	requested: readonly string[],
 	report: RunReport | undefined,
 	failures: readonly FailedOutput[],
+	errors: ReadonlyMap<string, string>,
 ): void {
 	const github = inGithubActions();
 	for (const failure of failures) {
+		const error = errors.get(failure.name);
 		console.log(`\n${bold(red(`✗ ${failure.name}`))} ${dim("— output:")}`);
 		for (const line of failure.lines) {
 			console.log(`  ${line}`);
+		}
+		if (error !== undefined) {
+			console.log(`  ${red(error)}`);
 		}
 		if (github) {
 			const notes = annotationsFromOutput(failure.name, failure.lines);
@@ -193,7 +209,15 @@ function reportCi(
 			console.log(
 				formatAnnotation({
 					title: `outdo: ${failure.name} failed`,
-					message: tail.join("\n") || "failed",
+					message:
+						[
+							...tail,
+							...(error !== undefined
+								? [
+										error,
+									]
+								: []),
+						].join("\n") || "failed",
 				}),
 			);
 		}

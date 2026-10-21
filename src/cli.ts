@@ -4,9 +4,8 @@
  * beyond parsing and error handling is loaded lazily per command.
  */
 
-import { existsSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { localInstall } from "~/cli/local";
 import { parseCli, wantsJsonErrors } from "~/cli/parse";
 import { EXIT, OutdoError } from "~/core/errors";
 import { red, setColorMode } from "~/core/logger";
@@ -177,44 +176,7 @@ async function main(): Promise<number> {
 	}
 }
 
-/**
- * A global `outdo` hands over to the project's own installed copy, so the
- * repo always runs the version in its lockfile (turbo does the same). Source
- * runs (`bun src/cli.ts`) never hand over; OUTDO_NO_LOCAL=1 disables it.
- */
-function localInstall(): string | undefined {
-	if (process.env.OUTDO_NO_LOCAL === "1" || process.argv[1] === undefined) {
-		return undefined;
-	}
-	let self: string;
-	try {
-		self = realpathSync(process.argv[1]);
-	} catch {
-		return undefined;
-	}
-	if (self.endsWith(".ts")) {
-		return undefined;
-	}
-	let dir = resolve(process.cwd());
-	for (;;) {
-		const candidate = join(dir, "node_modules", "@meslzy", "outdo", "dist", "cli.js");
-		if (existsSync(candidate)) {
-			try {
-				const real = realpathSync(candidate);
-				return real === self ? undefined : real;
-			} catch {
-				return undefined;
-			}
-		}
-		const parent = dirname(dir);
-		if (parent === dir) {
-			return undefined;
-		}
-		dir = parent;
-	}
-}
-
-const local = localInstall();
+const local = localInstall(process.argv[1], process.cwd(), process.env);
 if (local !== undefined) {
 	// Workers re-spawn `process.argv[1]`; point it at the local copy too.
 	process.argv[1] = local;

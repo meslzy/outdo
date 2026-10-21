@@ -1,0 +1,8 @@
+{
+	"name": "@ws/lib",
+	"private": true,
+	"scripts": {
+		"tsc": "echo LIB-TSC",
+		"test": "echo LIB-TEST"
+	}
+}

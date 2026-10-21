@@ -5,7 +5,7 @@
 
 import { cacheable } from "~/core/cache";
 import { dim, red, yellow } from "~/core/logger";
-import type { Task } from "~/core/model";
+import { predecessors, type Task } from "~/core/model";
 import type { TaskResult } from "~/core/scheduler";
 
 export type CacheStatus = "hit" | "miss" | "disabled";
@@ -178,7 +178,7 @@ export function criticalPath(
 		}
 		let maxDep = 0;
 		let via: string | undefined;
-		for (const dep of task.deps) {
+		for (const dep of predecessors(task)) {
 			const f = finish.get(dep);
 			if (f !== undefined && f > maxDep) {
 				maxDep = f;

@@ -23,6 +23,7 @@ export type {
 	ArgDecl,
 	ArgSpec,
 	ArgsOut,
+	BuiltEntry,
 	BuiltTask,
 	Command,
 	DefinedTasks,

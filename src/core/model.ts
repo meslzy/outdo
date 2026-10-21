@@ -26,6 +26,8 @@ export interface ArgDef {
 	required: boolean;
 	/** Allowed string values (ArgSpec `choices` or a schema's enum). */
 	choices: readonly string[] | undefined;
+	/** Completion-only suggestions (ArgSpec `suggest`). */
+	suggest: readonly string[] | undefined;
 	schema: StandardSchemaV1 | undefined;
 	/** JSON Schema for the flag (schema flags only; drives MCP input schemas). */
 	jsonSchema: Record<string, unknown> | undefined;

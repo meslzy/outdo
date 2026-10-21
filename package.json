@@ -20,10 +20,15 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"default": "./dist/index.js"
+		},
+		"./compose": {
+			"types": "./dist/compose.d.ts",
+			"default": "./dist/compose.js"
 		}
 	},
 	"files": [
-		"dist"
+		"dist",
+		"skills"
 	],
 	"engines": {
 		"bun": ">=1.4.0"

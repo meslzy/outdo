@@ -34,6 +34,8 @@ interface CachedTask {
 
 interface Snapshot {
 	version: number;
+	/** Project root it was built for (a copied .outdo/ must not answer for another root). */
+	root: string;
 	/** source path -> mtimeMs at the time of the snapshot */
 	sources: Record<string, number>;
 	tasks: CachedTask[];
@@ -245,6 +247,7 @@ function snapshotOf(project: Project): Snapshot {
 	}
 	return {
 		version: CACHE_VERSION,
+		root: project.rootDir,
 		sources,
 		tasks: [
 			...project.tasks.values(),
@@ -268,9 +271,9 @@ function snapshotOf(project: Project): Snapshot {
 										description: def.description,
 									}
 								: {}),
-							...(def.choices !== undefined
+							...((def.choices ?? def.suggest) !== undefined
 								? {
-										choices: def.choices,
+										choices: def.choices ?? def.suggest,
 									}
 								: {}),
 						},
@@ -305,7 +308,7 @@ export function refreshCompletionCache(project: Project): void {
 function readFresh(rootDir: string): Snapshot | undefined {
 	try {
 		const snapshot = JSON.parse(readFileSync(cachePath(rootDir), "utf8")) as Snapshot;
-		if (snapshot.version !== CACHE_VERSION) {
+		if (snapshot.version !== CACHE_VERSION || snapshot.root !== rootDir) {
 			return undefined;
 		}
 		const paths = Object.keys(snapshot.sources);

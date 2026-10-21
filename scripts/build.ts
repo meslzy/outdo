@@ -15,6 +15,7 @@ const result = await Bun.build({
 	entrypoints: [
 		"src/cli.ts",
 		"src/index.ts",
+		"src/compose.ts",
 	],
 	outdir: "dist",
 	target: "bun",

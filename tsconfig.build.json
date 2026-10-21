@@ -4,10 +4,12 @@
 		"noEmit": false,
 		"emitDeclarationOnly": true,
 		"declaration": true,
-		"outDir": "dist"
+		"outDir": "dist",
+		"rootDir": "src"
 	},
 	"include": [
 		"src/index.ts",
-		"src/types.ts"
+		"src/types.ts",
+		"src/compose.ts"
 	]
 }

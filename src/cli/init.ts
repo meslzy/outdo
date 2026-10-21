@@ -5,40 +5,39 @@ import { join } from "node:path";
 import { EXIT, OutdoError } from "~/core/errors";
 import { green } from "~/core/logger";
 
-const TEMPLATE = `import { defineTasks, task } from "@meslzy/outdo";
+const TEMPLATE = `import { defineTasks } from "@meslzy/outdo";
 
 export default defineTasks({
+	// A task can be one command...
+	fix: "bunx biome check --write",
+	tsc: "bunx tsc --noEmit",
+	test: { desc: "Run tests", run: "bun test" }, // outdo test -- --watch appends args
+
+	// ...a service...
 	dev: {
 		desc: "Start the dev server",
 		persistent: true,
-		run: async ({ $ }) => {
-			await $\`bun --watch src/index.ts\`;
-		},
+		run: "bun --watch src/index.ts",
 	},
+
+	// ...a cached build (skipped when src/ is unchanged)...
 	build: {
 		desc: "Build the project",
 		inputs: ["src/**/*.ts"],
 		outputs: ["dist/**"],
-		run: async ({ $ }) => {
-			await $\`bun build src/index.ts --outdir dist\`;
-		},
-	},
-	test: {
-		desc: "Run tests",
-		deps: ["build"],
-		run: async ({ $ }) => {
-			await $\`bun test\`;
-		},
+		run: "bun build src/index.ts --outdir dist",
 	},
 
-	// Typed env + flags need the task() builder:
-	//
-	// deploy: task({
-	// 	desc: "Deploy to production",
-	// 	env: z.object({ DEPLOY_TOKEN: z.string() }),
+	// ...steps that run in order (outdo check --from tsc)...
+	check: { desc: "Everything that must pass before a commit", steps: ["fix", "tsc", "test"] },
+
+	// ...or a function with typed flags (and env, via a zod schema):
+	// deploy: {
+	// 	desc: "Deploy",
 	// 	args: { dry: { type: "boolean", short: "d" } },
-	// 	run: async ({ $, env, args }) => { ... },
-	// }),
+	// 	protect: true, // asks before running; --yes skips the question
+	// 	run: async ({ $, args }) => { ... },
+	// },
 });
 `;
 

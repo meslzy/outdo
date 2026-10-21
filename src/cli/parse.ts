@@ -586,11 +586,29 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 			};
 		} else {
 			flags.ci = true;
+			// `outdo ci check --all` reads naturally; ci's own flags may follow the tasks.
+			const run = runLike();
+			let all = values.all === true;
+			let base = values.base as string | undefined;
+			const taskArgv: string[] = [];
+			for (let i = 0; i < run.taskArgv.length; i++) {
+				const token = run.taskArgv[i] as string;
+				if (token === "--all") {
+					all = true;
+				} else if (token === "--base" && run.taskArgv[i + 1] !== undefined) {
+					base = run.taskArgv[++i];
+				} else if (token.startsWith("--base=")) {
+					base = token.slice("--base=".length);
+				} else {
+					taskArgv.push(token);
+				}
+			}
 			command = {
 				kind: "ci",
-				...runLike(),
-				all: values.all === true,
-				base: values.base as string | undefined,
+				...run,
+				taskArgv,
+				all,
+				base,
 			};
 			if (command.tasks.length === 0) {
 				throw new OutdoError("usage", 'ci requires a task name, e.g. "outdo ci check" (or "outdo ci init").');

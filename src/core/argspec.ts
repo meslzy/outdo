@@ -116,6 +116,7 @@ function schemaArg(schema: StandardSchemaV1): ArgDef {
 		default: js?.default,
 		required,
 		choices: js === undefined ? undefined : jsonChoices(js),
+		suggest: undefined,
 		schema,
 		jsonSchema: js,
 	};
@@ -157,6 +158,7 @@ export function normalizeArgs(value: unknown, task: string): Record<string, ArgD
 			default: s.default,
 			required: s.type === "string" && s.required === true,
 			choices: s.choices,
+			suggest: s.suggest,
 			schema: undefined,
 			jsonSchema: undefined,
 		};

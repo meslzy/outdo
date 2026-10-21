@@ -3,7 +3,8 @@
  * through the system `ssh` client. Interpolations are POSIX-shell escaped
  * (arrays become several words, `{ raw }` is inserted verbatim), output
  * streams line by line with a `label |` prefix and is also returned.
- * `OUTDO_SSH` overrides the ssh binary (tests use a fake).
+ * `OUTDO_SSH` overrides the ssh binary — a path, or a JSON array of argv
+ * (tests use `["bun", "fake-ssh.ts"]`).
  */
 
 import type { RemoteResult, RemoteShell, Ssh } from "~/types";
@@ -86,6 +87,19 @@ async function pump(
 	return all;
 }
 
+function sshCommand(override: string | undefined): string[] {
+	if (override === undefined || override === "") {
+		return [
+			"ssh",
+		];
+	}
+	return override.startsWith("[")
+		? (JSON.parse(override) as string[])
+		: [
+				override,
+			];
+}
+
 function remote(cfg: RemoteConfig, env: Record<string, string | undefined>, signal: AbortSignal): RemoteShell {
 	const run = async (strings: TemplateStringsArray, ...values: unknown[]): Promise<RemoteResult> => {
 		const command = buildRemoteCommand(strings, values);
@@ -98,7 +112,7 @@ function remote(cfg: RemoteConfig, env: Record<string, string | undefined>, sign
 		}
 		const proc = Bun.spawn(
 			[
-				env.OUTDO_SSH ?? "ssh",
+				...sshCommand(env.OUTDO_SSH),
 				...cfg.args,
 				cfg.target,
 				full,
