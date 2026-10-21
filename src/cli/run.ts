@@ -51,7 +51,18 @@ type RunLikeCommand = Extract<
 	}
 >;
 
+/**
+ * The ready-marker path from `outdo bg start`, taken out of the environment
+ * before any task spawns: an outdo run nested inside a task must not mark the
+ * background run ready.
+ */
+let backgroundState: string | undefined;
+
 export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): Promise<number> {
+	if (process.env.OUTDO_BG_STATE !== undefined) {
+		backgroundState = process.env.OUTDO_BG_STATE;
+		delete process.env.OUTDO_BG_STATE;
+	}
 	if (flags.watch && flags.json) {
 		throw new OutdoError("usage", "--watch cannot be combined with --json (watch is a streaming mode).");
 	}
@@ -747,7 +758,7 @@ async function runSequential(state: SharedRunState): Promise<ExecOutcome> {
 
 /** `outdo bg start` points this at its state file; the run marks itself ready there. */
 function markBackgroundReady(): void {
-	const path = process.env.OUTDO_BG_STATE;
+	const path = backgroundState;
 	if (path === undefined || path === "") {
 		return;
 	}

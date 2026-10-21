@@ -16,12 +16,14 @@ import { EXIT, OutdoError } from "~/core/errors";
 import { dim, green } from "~/core/logger";
 import { enumerateMembers, findWorkspaceRoot } from "~/core/workspaces";
 
-/** Root-level files bun install reads besides package.json. */
+/**
+ * Root-level files bun install reads besides package.json. Not .npmrc: it
+ * often carries registry tokens, which must not end up in an image layer.
+ */
 const ROOT_FILES = [
 	"bun.lock",
 	"bun.lockb",
 	"bunfig.toml",
-	".npmrc",
 ];
 
 function nearestPackageDir(start: string): string | undefined {
