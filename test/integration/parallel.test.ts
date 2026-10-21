@@ -140,12 +140,20 @@ describe("parallel DAG execution", () => {
 });
 
 describe("services", () => {
-	test("dependent starts once the service has spawned; crash fails the run", async () => {
+	test("a service pulled in as a dependency is stopped once its dependents finish", async () => {
 		const { exitCode, stdout, stderr } = await runCli(SERVICES, [
 			"uses:flaky",
 		]);
-		expect(exitCode).toBe(1);
+		expect(exitCode).toBe(0);
 		expect(stdout).toContain("dependent ran while service alive");
+		expect(stderr).toContain("stopping svc:flaky");
+	});
+
+	test("a requested service keeps the run alive; its crash fails the run", async () => {
+		const { exitCode, stderr } = await runCli(SERVICES, [
+			"svc:flaky",
+		]);
+		expect(exitCode).toBe(1);
 		expect(stderr).toContain('Service "svc:flaky" exited unexpectedly');
 	});
 });

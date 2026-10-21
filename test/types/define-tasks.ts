@@ -119,13 +119,21 @@ defineTasks({
 	}),
 });
 
-// --- 7. inline entries reject env/args (must use task()) ---------------------
+// --- 7. inline entries type env/args without task() --------------------------
 defineTasks({
-	bad: {
-		// @ts-expect-error — env requires the task() builder
+	inline: {
 		env: z.object({
 			X: z.string(),
 		}),
+		args: {
+			dry: {
+				type: "boolean",
+			},
+		},
+		run: ({ env, args }) => {
+			assertTrue<Equal<typeof env.X, string>>();
+			assertTrue<Equal<typeof args.dry, boolean>>();
+		},
 	},
 });
 

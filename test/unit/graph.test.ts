@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { OutdoError } from "~/core/errors";
 import { assertAcyclic, dependents, subgraphFor, topoOrder } from "~/core/graph";
 import type { Task } from "~/core/model";
+import { TASK_EXTRAS } from "./task-extras";
 
 function makeTasks(defs: Record<string, string[]>): Map<string, Task> {
 	const map = new Map<string, Task>();
@@ -10,6 +11,7 @@ function makeTasks(defs: Record<string, string[]>): Map<string, Task> {
 			name,
 			desc: undefined,
 			group: undefined,
+			...TASK_EXTRAS,
 			deps,
 			depEdges: deps.map((dep) => ({
 				task: dep,

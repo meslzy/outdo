@@ -8,14 +8,16 @@
 
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
+import { prepareEnv, resolveMode } from "~/cli/plan";
 import { resolveSingleTask } from "~/cli/resolve-task";
-import { applyDefaults, usesSequentialBackend } from "~/cli/run";
+import { usesSequentialBackend } from "~/cli/run";
+import { applyDefaults } from "~/core/argspec";
 import type { CacheDiagnosis, MissReason } from "~/core/cache";
 import { cacheable, diagnoseCache } from "~/core/cache";
-import { resolveEnv, validateTaskEnv } from "~/core/envresolve";
+import { validateTaskEnv } from "~/core/envresolve";
 import { EXIT } from "~/core/errors";
 import { allPatternsMatchSomething, expand } from "~/core/globs";
-import { applyConditions, subgraphFor, topoOrder } from "~/core/graph";
+import { applyConditions, applySteps, subgraphFor, topoOrder } from "~/core/graph";
 import { bold, dim, green, red, yellow } from "~/core/logger";
 import type { Project, Task } from "~/core/model";
 import { describeProbe } from "~/core/ready";
@@ -36,21 +38,21 @@ interface ExplainedTask {
 
 export async function explainCommand(taskName: string, flags: GlobalFlags): Promise<number> {
 	const loaded = await loadProjectFromCwd(flags.filter);
-	const resolved = resolveEnv(loaded.rootDir);
-	for (const [key, entry] of resolved.keys) {
-		if (entry.source !== "process" && process.env[key] === undefined) {
-			process.env[key] = entry.value;
-		}
-	}
-	const project: Project = {
+	const mode = resolveMode(loaded, flags.mode);
+	const { envFor } = prepareEnv(loaded, mode);
+	const conditioned: Project = {
 		...loaded,
-		tasks: applyConditions(loaded.tasks, resolved.env),
+		tasks: applyConditions(loaded.tasks, process.env),
 	};
-	const target = resolveSingleTask(project, taskName);
+	const target = resolveSingleTask(conditioned, taskName);
 
-	const subset = subgraphFor(project.tasks, [
+	const subset = subgraphFor(conditioned.tasks, [
 		target.name,
 	]);
+	const project: Project = {
+		...conditioned,
+		tasks: applySteps(conditioned.tasks, subset),
+	};
 	const order = topoOrder(project.tasks, subset);
 	const planned = order.map((name) => project.tasks.get(name) as Task);
 
@@ -60,14 +62,14 @@ export async function explainCommand(taskName: string, flags: GlobalFlags): Prom
 	const outputs = new Map<string, unknown>();
 	const explained: ExplainedTask[] = [];
 	for (const task of planned) {
-		const envCheck = task.env !== undefined ? await validateTaskEnv(task, resolved.env) : undefined;
+		const envCheck = task.env !== undefined ? await validateTaskEnv(task, envFor(task)) : undefined;
 		const subsetDeps = task.deps.filter((dep) => subset.has(dep));
 		const diagnosis = await diagnoseCache(
 			project.rootDir,
 			task,
 			{
 				envOutput: task.env !== undefined ? (envCheck?.value ?? null) : null,
-				args: applyDefaults(task),
+				args: await applyDefaults(task),
 				rest: [],
 				depFingerprints: subsetDeps.map((dep) => fingerprints.get(dep) ?? ""),
 				depOutputs: subsetDeps.map((dep) => JSON.stringify(outputs.get(dep) ?? null)),
@@ -241,7 +243,11 @@ function verdictText(e: ExplainedTask): string {
 		case "service":
 			return dim("service (never cached)");
 		case "not-cacheable":
-			return dim(e.task.run === undefined ? "aggregation only (no run)" : "not cacheable (no inputs declared)");
+			return dim(
+				e.task.run === undefined && e.task.command === undefined && e.task.script === undefined
+					? "aggregation only (no run)"
+					: "not cacheable (no inputs declared)",
+			);
 		case "would-run": {
 			const reasons = e.diagnosis?.reasons ?? [];
 			return `would run${reasons.length > 0 ? ` — ${reasons.map(reasonText).join(", ")}` : ""}`;
@@ -293,9 +299,24 @@ function reasonText(reason: MissReason): string {
 function renderDetails(e: ExplainedTask, subset: ReadonlySet<string>): string[] {
 	const task = e.task;
 	const lines: string[] = [];
-	const deps = task.deps.filter((dep) => subset.has(dep));
+	const steps = new Set(task.steps);
+	const deps = task.deps.filter((dep) => subset.has(dep) && !steps.has(dep));
 	if (deps.length > 0) {
 		lines.push(`deps:     ${deps.join(", ")}`);
+	}
+	if (task.steps.length > 0) {
+		lines.push(`steps:    ${task.steps.join(" → ")}`);
+	}
+	if (task.after.length > 0) {
+		lines.push(`after:    ${task.after.join(", ")} ${dim("(step order)")}`);
+	}
+	if (task.finally.length > 0) {
+		lines.push(`finally:  ${task.finally.join(", ")}`);
+	}
+	if (task.command !== undefined) {
+		lines.push(`runs:     ${task.command.join(" && ")}`);
+	} else if (task.script !== undefined) {
+		lines.push(`runs:     bun run ${task.script} ${dim("(package.json)")}`);
 	}
 	const inactive = inactiveDeps(task);
 	if (inactive.length > 0) {

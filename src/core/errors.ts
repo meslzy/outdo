@@ -18,9 +18,11 @@ export type OutdoErrorCode =
 	| "env-invalid"
 	| "task-failed"
 	| "git"
+	| "refused"
 	| "interrupted";
 
 const EXIT_BY_CODE: Record<OutdoErrorCode, ExitCode> = {
+	refused: EXIT.usage,
 	usage: EXIT.usage,
 	"config-not-found": EXIT.config,
 	"config-invalid": EXIT.config,

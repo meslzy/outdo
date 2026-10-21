@@ -2,8 +2,9 @@
 
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
+import { resolveMode } from "~/cli/plan";
 import { resolveSingleTask } from "~/cli/resolve-task";
-import { resolveEnv, validateTaskEnv } from "~/core/envresolve";
+import { layerEnvFiles, resolveEnv, validateTaskEnv } from "~/core/envresolve";
 import { EXIT } from "~/core/errors";
 import { bold, cyan, dim, green, red } from "~/core/logger";
 
@@ -11,7 +12,21 @@ export async function printEnvCommand(taskName: string, flags: GlobalFlags): Pro
 	const project = await loadProjectFromCwd(flags.filter);
 	const task = resolveSingleTask(project, taskName);
 
-	const resolved = resolveEnv(project.rootDir);
+	const mode = resolveMode(project, flags.mode);
+	const processEnv: Record<string, string | undefined> = {
+		...process.env,
+		...(mode !== ""
+			? {
+					OUTDO_MODE: mode,
+				}
+			: {}),
+	};
+	const resolved = layerEnvFiles(
+		resolveEnv(project.rootDir, processEnv, project.modes.length > 0 ? mode : undefined),
+		task.envFiles,
+		mode,
+		project.rootDir,
+	);
 	const validation = await validateTaskEnv(task, resolved.env);
 	const ok = validation.issues.length === 0;
 
@@ -20,6 +35,11 @@ export async function printEnvCommand(taskName: string, flags: GlobalFlags): Pro
 			JSON.stringify(
 				{
 					task: task.name,
+					...(mode !== ""
+						? {
+								mode,
+							}
+						: {}),
 					loadedFiles: resolved.loadedFiles,
 					env: Object.fromEntries(
 						[
@@ -48,7 +68,7 @@ export async function printEnvCommand(taskName: string, flags: GlobalFlags): Pro
 		return ok ? EXIT.ok : EXIT.config;
 	}
 
-	console.log(bold(`env for task "${task.name}"`));
+	console.log(bold(`env for task "${task.name}"${mode !== "" ? ` (mode ${mode})` : ""}`));
 	console.log(
 		dim(
 			resolved.loadedFiles.length > 0
