@@ -175,3 +175,30 @@ export function writeGithubOutputs(
 	);
 	return true;
 }
+
+/** GitHub output names: letters, digits, `-` and `_`. */
+export function outputKey(task: string): string {
+	return task.replaceAll(/[^A-Za-z0-9_-]/g, "_");
+}
+
+/** The workflow `outdo ci init` writes. */
+export function workflowYaml(task: string, branch: string): string {
+	return `name: CI
+
+on:
+  push:
+    branches: [${branch}]
+  pull_request:
+
+jobs:
+  ${task.replaceAll(/[^A-Za-z0-9_-]/g, "-")}:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # outdo compares against the PR base / previous push
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx outdo ci ${task}
+`;
+}

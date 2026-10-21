@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
 import { EXIT, OutdoError } from "~/core/errors";
+import { workflowYaml } from "~/core/github";
 import { dim, green } from "~/core/logger";
 
 /** The task CI should run: the usual "everything must pass" names, first match wins. */
@@ -41,27 +42,6 @@ async function defaultBranch(cwd: string): Promise<string> {
 		// no git — fall through
 	}
 	return "main";
-}
-
-export function workflowYaml(task: string, branch: string): string {
-	return `name: CI
-
-on:
-  push:
-    branches: [${branch}]
-  pull_request:
-
-jobs:
-  ${task.replaceAll(/[^A-Za-z0-9_-]/g, "-")}:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # outdo compares against the PR base / previous push
-      - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bunx outdo ci ${task}
-`;
 }
 
 export async function ciInitCommand(flags: GlobalFlags): Promise<number> {

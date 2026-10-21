@@ -6,34 +6,36 @@ export default defineTasks({
 	typecheck: {
 		group: "Verify",
 		desc: "TypeScript gate (includes compile-time type tests)",
-		run: async ({ $ }) => {
-			await $`bun run typecheck`;
-		},
+		readonly: true,
+		run: "bun run typecheck",
 	},
 	lint: {
 		group: "Verify",
 		desc: "Biome lint + format check",
-		run: async ({ $ }) => {
-			await $`bun run lint`;
-		},
+		readonly: true,
+		run: "bun run lint",
+	},
+	fix: {
+		group: "Verify",
+		desc: "Apply Biome fixes and formatting",
+		run: "bun run format",
 	},
 	test: {
 		group: "Verify",
 		desc: "Full test suite",
-		run: async ({ $ }) => {
-			await $`bun run test`;
-		},
+		readonly: true,
+		run: "bun run test",
 	},
 	coverage: {
 		group: "Verify",
 		desc: "Test suite with coverage report (text + lcov in coverage/)",
-		run: async ({ $ }) => {
-			await $`bun run coverage`;
-		},
+		readonly: true,
+		run: "bun run coverage",
 	},
 	check: {
 		group: "Verify",
 		desc: "Everything that must pass before a commit",
+		readonly: true,
 		deps: [
 			"typecheck",
 			"lint",
@@ -51,9 +53,7 @@ export default defineTasks({
 		outputs: [
 			"dist/**",
 		],
-		run: async ({ $ }) => {
-			await $`bun run build`;
-		},
+		run: "bun run build",
 	},
 	pack: {
 		group: "Release",
@@ -61,17 +61,13 @@ export default defineTasks({
 		deps: [
 			"build",
 		],
-		run: async ({ $ }) => {
-			await $`bun pm pack`;
-		},
+		run: "bun pm pack",
 	},
 	"docs:dev": {
 		group: "Docs",
 		desc: "Docs dev server (VitePress)",
 		persistent: true,
-		run: async ({ $ }) => {
-			await $`bun run docs:dev`;
-		},
+		run: "bun run docs:dev",
 	},
 	"docs:build": {
 		group: "Docs",
@@ -84,8 +80,6 @@ export default defineTasks({
 		outputs: [
 			"docs/.vitepress/dist/**",
 		],
-		run: async ({ $ }) => {
-			await $`bun run docs:build`;
-		},
+		run: "bun run docs:build",
 	},
 });

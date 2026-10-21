@@ -10,7 +10,7 @@ import type { Command, GlobalFlags } from "~/cli/parse";
 import { resolveRequested } from "~/cli/plan";
 import { EXIT } from "~/core/errors";
 import { detectChanged, selectAffected } from "~/core/gitaffected";
-import { writeGithubOutputs } from "~/core/github";
+import { outputKey, writeGithubOutputs } from "~/core/github";
 import { dim, yellow } from "~/core/logger";
 
 type AffectedCommand = Extract<
@@ -19,11 +19,6 @@ type AffectedCommand = Extract<
 		kind: "affected";
 	}
 >;
-
-/** GitHub output names: letters, digits, `-` and `_`. */
-export function outputKey(task: string): string {
-	return task.replaceAll(/[^A-Za-z0-9_-]/g, "_");
-}
 
 export async function affectedCommand(command: AffectedCommand, flags: GlobalFlags): Promise<number> {
 	const project = await loadProjectFromCwd(flags.filter);

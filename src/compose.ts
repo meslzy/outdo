@@ -15,7 +15,7 @@
  * complete with Tab (from `services`, or read from the compose files).
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { task } from "./index";
 import type { BuiltEntry, TaskCtx } from "./types";
@@ -84,16 +84,18 @@ function discoverServices(options: ComposeOptions, baseDir: string): string[] {
 	} catch {
 		files = [];
 	}
-	if (files.length === 0) {
-		files = [
-			"compose.yaml",
-			"compose.yml",
-			"docker-compose.yaml",
-			"docker-compose.yml",
-		];
+	const dir = resolve(baseDir, options.cwd ?? ".");
+	if (!files.some((file) => existsSync(resolve(dir, file)))) {
+		// The mode is not known while do.ts is imported — suggest from every
+		// compose file here (these are Tab hints, never enforced).
+		try {
+			files = readdirSync(dir).filter((name) => /^(docker-)?compose([.-].*)?\.ya?ml$/.test(name));
+		} catch {
+			files = [];
+		}
 	}
 	for (const file of files) {
-		const path = resolve(baseDir, options.cwd ?? ".", file);
+		const path = resolve(dir, file);
 		if (existsSync(path)) {
 			for (const name of servicesInFile(readFileSync(path, "utf8"))) {
 				found.add(name);
@@ -126,9 +128,15 @@ export async function runCompose(options: ComposeOptions, ctx: Ctx, args: readon
 			env[key] = value;
 		}
 	}
+	// OUTDO_DOCKER: a JSON argv standing in for `docker` (tests use a fake).
+	const docker = process.env.OUTDO_DOCKER;
 	const proc = Bun.spawn(
 		[
-			"docker",
+			...(docker !== undefined && docker !== ""
+				? (JSON.parse(docker) as string[])
+				: [
+						"docker",
+					]),
 			"compose",
 			...global,
 			...args,

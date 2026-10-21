@@ -9,7 +9,12 @@ import { OutdoError } from "~/core/errors";
 import type { Project, Task } from "~/core/model";
 import { didYouMean } from "~/core/util";
 
-/** Every task a name could refer to: exact match plus workspace local names. */
+/**
+ * Every task a name could refer to: exact match plus workspace local names.
+ * Member package.json scripts join a bare name only when the root has no task
+ * of that name — a root `build` stays the root build (a root task that wants
+ * every package's script depends on `^build`).
+ */
 export function findTaskMatches(project: Project, name: string): Task[] {
 	const matches: Task[] = [];
 	const exact = project.tasks.get(name);
@@ -18,7 +23,7 @@ export function findTaskMatches(project: Project, name: string): Task[] {
 	}
 	if (!name.includes("#")) {
 		for (const task of project.tasks.values()) {
-			if (task.localName === name && task.name.includes("#")) {
+			if (task.localName === name && task.name.includes("#") && !(task.kind === "script" && exact !== undefined)) {
 				matches.push(task);
 			}
 		}

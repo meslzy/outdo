@@ -4,13 +4,11 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { outputKey } from "~/cli/affected";
-import { workflowYaml } from "~/cli/ci-init";
 import { readScripts } from "~/cli/load";
 import { localInstall } from "~/cli/local";
 import { filterItems, scoreItem } from "~/cli/pick";
 import { servicesInFile } from "~/compose";
-import { annotationsFromOutput, formatAnnotation, githubBase } from "~/core/github";
+import { annotationsFromOutput, formatAnnotation, githubBase, outputKey, workflowYaml } from "~/core/github";
 import { buildRemoteCommand, shellQuote } from "~/core/ssh";
 
 const scratch = mkdtempSync(join(tmpdir(), "outdo-helpers-"));

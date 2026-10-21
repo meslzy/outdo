@@ -3,6 +3,7 @@
 	"private": true,
 	"scripts": {
 		"tsc": "echo LIB-TSC",
-		"test": "echo LIB-TEST"
+		"test": "echo LIB-TEST",
+		"build": "echo LIB-BUILD"
 	}
 }

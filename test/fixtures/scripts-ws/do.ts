@@ -9,6 +9,7 @@ export default defineTasks(
 			],
 			run: "echo ROOT-TSC",
 		},
+		build: "echo ROOT-BUILD",
 		lint: {
 			desc: "do.ts decorates the package.json script",
 			readonly: true,

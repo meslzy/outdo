@@ -66,6 +66,19 @@ describe("workspaces without member do.ts files", () => {
 		expect(all.stdout).toContain("LIB-TEST");
 	});
 
+	test("a root task keeps its name: member scripts don't fan in", async () => {
+		const r = await runCli(WS, [
+			"build",
+		]);
+		expect(r.exitCode).toBe(0);
+		expect(r.stdout).toContain("ROOT-BUILD");
+		expect(r.stdout).not.toContain("LIB-BUILD");
+		const member = await runCli(WS, [
+			"@ws/lib#build",
+		]);
+		expect(member.stdout).toContain("LIB-BUILD");
+	});
+
 	test("a do.ts entry without a body runs the same-named root script", async () => {
 		const r = await runCli(WS, [
 			"lint",

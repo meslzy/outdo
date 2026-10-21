@@ -400,7 +400,8 @@ export interface TaskInput<
 	env?: E;
 	/** Typed CLI flags: `outdo <task> --flag value`. */
 	args?: A;
-	run?: Command | ((ctx: TaskCtx<EnvOut<E>, ArgsOut<A>, DepsDataOf<Deps>>) => R);
+	// Function-only on purpose: `Parameters<typeof task>[0]["run"]` must stay a function type.
+	run?: (ctx: TaskCtx<EnvOut<E>, ArgsOut<A>, DepsDataOf<Deps>>) => R;
 }
 
 /** Brand carried by `task()` results (set non-enumerably at runtime). */
