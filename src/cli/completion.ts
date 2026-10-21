@@ -16,18 +16,34 @@ _outdo() {
 complete -o default -F _outdo outdo
 `;
 
-const ZSH = `# outdo zsh completion — add to ~/.zshrc:
+// Native subscripts (`words[2,CURRENT-1]`), not `${words[@]:1:CURRENT-1}`:
+// zsh parses an offset/length that starts with a letter as a history modifier
+// (`unrecognized modifier 'C'`). `_describe` splits on `:`, so values escape it.
+const ZSH = `# outdo zsh completion — add to ~/.zshrc (after oh-my-zsh / compinit):
 #   eval "$(outdo completion zsh)"
 _outdo() {
-	local -a pairs
-	pairs=("\${(@f)$(outdo __complete -- "\${words[@]:1:CURRENT-1}" "\${words[CURRENT]}" 2>/dev/null)}")
-	local -a completions
-	for pair in "\${pairs[@]}"; do
-		completions+=("\${pair/$'\\t'/:}")
+	local -a lines completions
+	local line value
+	lines=("\${(@f)$(outdo __complete -- "\${(@)words[2,CURRENT-1]}" "\${words[CURRENT]}" 2>/dev/null)}")
+	for line in "\${lines[@]}"; do
+		[[ -z $line ]] && continue
+		value=\${line%%$'\\t'*}
+		completions+=("\${value//:/\\\\:}:\${line#*$'\\t'}")
 	done
-	(( \${#completions} )) && _describe 'outdo' completions
+	(( \${#completions} )) && _describe -t tasks 'outdo' completions
+}
+# \`bunx outdo ...\` completes like \`outdo ...\`.
+_outdo_bunx() {
+	if (( CURRENT > 2 )) && [[ \${words[2]} == (outdo|@meslzy/outdo) ]]; then
+		shift words
+		(( CURRENT-- ))
+		_outdo
+	else
+		_default
+	fi
 }
 compdef _outdo outdo
+compdef _outdo_bunx bunx
 `;
 
 const FISH = `# outdo fish completion — save as ~/.config/fish/completions/outdo.fish:

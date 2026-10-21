@@ -142,8 +142,20 @@ describe("zsh completion script", () => {
 		]);
 		expect(result.exitCode).toBe(0);
 		// biome-ignore lint/suspicious/noTemplateCurlyInString: asserting literal zsh syntax
-		expect(result.stdout).toContain("${pair/$'\\t'/:}");
-		// biome-ignore lint/suspicious/noTemplateCurlyInString: the broken pre-fix form must be gone
-		expect(result.stdout).not.toContain("${pair/\\t/:}");
+		expect(result.stdout).toContain("${line%%$'\\t'*}");
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: asserting literal zsh syntax
+		expect(result.stdout).toContain("${line#*$'\\t'}");
+	});
+
+	// Behavior is covered under real zsh in complete.test.ts; this text guard
+	// also runs where zsh is absent (Windows CI).
+	test("never uses offset/length slicing (`:CURRENT` parses as a modifier)", async () => {
+		const result = await runCli(BASIC, [
+			"completion",
+			"zsh",
+		]);
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).not.toContain(":CURRENT");
+		expect(result.stdout).toContain("words[2,CURRENT-1]");
 	});
 });
