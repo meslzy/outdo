@@ -4,7 +4,8 @@
 		"includes": [
 			"**",
 			"!dist",
-			"!test/fixtures/**/node_modules"
+			"!test/fixtures/**/node_modules",
+			"!test/types/skill-example.ts"
 		]
 	},
 	"vcs": {

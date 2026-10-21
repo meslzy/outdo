@@ -167,6 +167,10 @@ const SUBCOMMANDS: [
 		"serve tasks as MCP tools",
 	],
 	[
+		"skill",
+		"install the outdo agent skill",
+	],
+	[
 		"init",
 		"scaffold a starter do.ts",
 	],

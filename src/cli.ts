@@ -41,6 +41,7 @@ CI / CD
 More
   outdo init                     Scaffold a starter do.ts
   outdo mcp                      Serve tasks as MCP tools (for Claude)
+  outdo skill install [--global] Install the outdo agent skill (.claude/skills)
   outdo completion <shell>       Print shell completions (bash|zsh|fish|powershell)
 
 Flags
@@ -136,6 +137,10 @@ async function main(): Promise<number> {
 		case "mcp": {
 			const { mcpCommand } = await import("~/cli/mcp");
 			return await mcpCommand();
+		}
+		case "skill": {
+			const { skillCommand } = await import("~/cli/skill");
+			return await skillCommand(command.action, command.global);
 		}
 		case "doctor": {
 			const { doctorCommand } = await import("~/cli/doctor");

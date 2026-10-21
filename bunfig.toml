@@ -41,6 +41,7 @@ coveragePathIgnorePatterns = [
   "src/cli/plan.ts",
   "src/cli/prune.ts",
   "src/cli/resolve-task.ts",
+  "src/cli/skill.ts",
   # process orchestration: only meaningful with real child processes
   "src/core/child.ts",
   "src/core/lifecycle.ts",

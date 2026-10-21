@@ -95,6 +95,11 @@ export type Command =
 			kind: "mcp";
 	  }
 	| {
+			kind: "skill";
+			action: "install" | "path";
+			global: boolean;
+	  }
+	| {
 			kind: "doctor";
 	  }
 	| {
@@ -153,6 +158,7 @@ export const SUBCOMMANDS = new Set([
 	"prune",
 	"mcp",
 	"doctor",
+	"skill",
 	"__complete",
 ]);
 
@@ -304,6 +310,11 @@ const COMMAND_OPTIONS: Record<
 	},
 	bg: {
 		follow: {
+			type: "boolean",
+		},
+	},
+	skill: {
+		global: {
 			type: "boolean",
 		},
 	},
@@ -651,6 +662,16 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 	} else if (first === "mcp") {
 		command = {
 			kind: "mcp",
+		};
+	} else if (first === "skill") {
+		const action = positionals[0] ?? "install";
+		if (action !== "install" && action !== "path") {
+			throw new OutdoError("usage", `Unknown skill action "${action}". Use: install [--global], path.`);
+		}
+		command = {
+			kind: "skill",
+			action,
+			global: values.global === true,
 		};
 	} else if (first === "doctor") {
 		command = {
