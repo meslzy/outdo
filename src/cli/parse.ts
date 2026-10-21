@@ -636,7 +636,8 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 			githubOutput: values["github-output"] === true,
 		};
 	} else if (first === "bg") {
-		command = parseBg(positionals, runLike, values.follow === true);
+		// `-f` is the global --force short alias; for `bg logs` it can only mean follow.
+		command = parseBg(positionals, runLike, values.follow === true || values.force === true);
 	} else if (first === "hooks") {
 		const action = positionals[0] ?? "list";
 		if (action !== "install" && action !== "uninstall" && action !== "list" && action !== "run") {
@@ -753,11 +754,13 @@ function parseBg(positionals: string[], runLike: () => RunLike, follow: boolean)
 /**
  * Pull runner flags (--mode, --yes, --from, --until) out of a task's own argv
  * when the task does not declare a flag of that name itself, so
- * `outdo up --mode prod` works as well as `outdo --mode prod up`.
+ * `outdo up --mode prod` works as well as `outdo --mode prod up`. The short
+ * forms `-y` / `-m` count too, unless the task claims that alias.
  */
 export function extractRunnerFlags(
 	argv: readonly string[],
 	taskFlags: ReadonlySet<string>,
+	taskShorts: ReadonlySet<string> = new Set(),
 ): {
 	argv: string[];
 	mode?: string;
@@ -775,7 +778,11 @@ export function extractRunnerFlags(
 	for (let i = 0; i < argv.length; i++) {
 		const token = argv[i] as string;
 		const eq = token.indexOf("=");
-		const name = token.startsWith("--") ? token.slice(2, eq === -1 ? undefined : eq) : undefined;
+		const long = token.startsWith("--") ? token.slice(2, eq === -1 ? undefined : eq) : undefined;
+		const short = /^-([ym])(?:=|$)/.exec(token)?.[1];
+		const name =
+			long
+			?? (short === "y" && !taskShorts.has("y") ? "yes" : short === "m" && !taskShorts.has("m") ? "mode" : undefined);
 		if (name === "yes" && eq === -1 && !taskFlags.has("yes")) {
 			found.yes = true;
 			continue;

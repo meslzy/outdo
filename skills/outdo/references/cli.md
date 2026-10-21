@@ -14,7 +14,7 @@
 | `outdo --print-env <task> [--json]` | env with provenance + schema check |
 | `outdo doctor [--json]` | every task's `requires` checks |
 | `outdo bg start <task> [flags]` | run detached; returns once its service is ready |
-| `outdo bg ps \| logs <task> [--follow] \| stop [task...]` | manage background runs (`.outdo/bg/`) |
+| `outdo bg ps \| logs <task> [-f] \| stop [task...]` | manage background runs (`.outdo/bg/`) |
 | `outdo ci <task...> [--all] [--base rev]` | CI run: affected only, grouped logs, failure recap, GitHub annotations and step summary |
 | `outdo ci init [--force]` | write `.github/workflows/ci.yml` |
 | `outdo affected <task...> [--base rev] [--github-output] [--json]` | `name=true\|false` per task |

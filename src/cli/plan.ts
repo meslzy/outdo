@@ -10,6 +10,7 @@
  *   guards             OUTDO_READONLY, protect/confirm, env schemas
  */
 
+import { refreshCompletionCache } from "~/cli/complete";
 import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
 import { extractRunnerFlags } from "~/cli/parse";
@@ -279,6 +280,9 @@ export async function preparePlan(
 	options: PlanOptions = {},
 ): Promise<PlanResult> {
 	const loaded = await loadProjectFromCwd(flags.filter);
+	if (flags.filter.length === 0) {
+		refreshCompletionCache(loaded);
+	}
 
 	const resolvedWords = resolveWords(loaded, input.words, input.taskArgv);
 	if ("namespace" in resolvedWords) {
@@ -292,7 +296,15 @@ export async function preparePlan(
 
 	// Runner flags may follow the task name unless the task claims that flag.
 	const firstTarget = requestedNames.length === 1 ? single(loaded, requestedNames[0] as string) : undefined;
-	const runner = extractRunnerFlags(resolvedWords.targetArgv, new Set(Object.keys(firstTarget?.args ?? {})));
+	const runner = extractRunnerFlags(
+		resolvedWords.targetArgv,
+		new Set(Object.keys(firstTarget?.args ?? {})),
+		new Set(
+			Object.values(firstTarget?.args ?? {})
+				.map((def) => def.short)
+				.filter((s): s is string => s !== undefined),
+		),
+	);
 	const runFlags: GlobalFlags = {
 		...flags,
 		mode: runner.mode ?? flags.mode,

@@ -205,7 +205,7 @@ export async function explainCommand(taskName: string, flags: GlobalFlags): Prom
 	lines.push(dim("plan (dependencies first):"));
 	for (const e of explained) {
 		lines.push(
-			`  ${verdictSymbol(e.verdict)} ${e.task.name.padEnd(Math.max(...order.map((n) => n.length)))}  ${verdictText(e)}`,
+			`  ${verdictSymbol(e.verdict)} ${e.task.name.padEnd(Math.max(...order.map((n) => n.length)))}  ${verdictText(e)}${e.task.after.length > 0 ? dim(` (after ${e.task.after.join(", ")})`) : ""}`,
 		);
 	}
 	const targetExplained = explained.find((e) => e.task.name === target.name) as ExplainedTask;

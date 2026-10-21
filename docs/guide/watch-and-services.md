@@ -50,9 +50,24 @@ Service semantics:
 
 - **Dependents unblock when the service is [ready](#readiness-probes)** — or on spawn, if no probe is declared
 - Services don't consume a concurrency slot — ten services won't starve your build tasks
-- The run **stays alive while services live**; Ctrl-C shuts everything down gracefully
-- A service that exits **on its own** fails the run: `Service "dev" exited unexpectedly`
+- **You asked for the service** (`outdo dev`): the run stays alive while it lives; Ctrl-C (or SIGTERM) shuts everything down gracefully, and a service that exits **on its own** fails the run: `Service "dev" exited unexpectedly`
+- **The service is only a dependency** (`outdo e2e`, where `e2e` needs `dev`): once the tasks you asked for finish, outdo stops it and the run ends — server up, tests, server down, in one command
 - Under `--watch`, a service whose globs match a change is **stopped and restarted** (cooperative signal → 5s grace → tree kill), and its readiness probe runs again before dependents re-run
+
+```ts
+dev: { persistent: true, ready: { port: 3000 }, run: "bun --watch src/server.ts" },
+playwright: "bunx playwright test",
+e2e: { steps: ["dev", "playwright"] }, // server up → tests → server stopped
+```
+
+```txt
+$ outdo e2e
+...
+✓ playwright (8.2s)
+✓ e2e (0ms)
+— 2 ok, 1 running · 9.1s total · critical path 9.0s (dev → playwright → e2e)
+stopping dev
+```
 
 ```sh
 outdo --watch dev     # edit a file → server restarts with a fresh process
@@ -95,3 +110,30 @@ Exactly one probe per service:
 | `port: 5432` | a TCP connection succeeds (polled every 250ms; `host` defaults to `127.0.0.1`) |
 
 `timeoutMs` (default **30s**) bounds the wait — a service that never becomes ready is stopped, its dependents are skipped, and the run fails with `service "db" was not ready after 30000ms`. A service that *exits* before becoming ready fails the same way, instead of silently unblocking dependents.
+
+## Background runs: `outdo bg`
+
+Start a service (or any task) in the background and get your terminal back once it is ready:
+
+```sh
+outdo bg start server          # returns once the server's ready probe passes
+outdo bg ps                    # what's running, since when, which port
+outdo bg logs server -f        # its output (without -f / --follow: print and exit)
+outdo bg stop server           # stop it (no name: stop everything)
+```
+
+```txt
+$ outdo bg start server
+✓ server ready in 606ms (pid 34744 · port 65231, log .outdo/bg/server.log)
+
+$ outdo bg ps
+  server  running  pid 34744 · up 12.4s  port 65231
+```
+
+- `bg start` plans the run **in the foreground first**: unknown tasks, bad flags, env schemas and [confirmation questions](/guide/safety#protect-and-confirm) happen in your terminal, not in a log file. It then starts a detached `outdo <task>` (passing on `--mode`, `--force`, `-j` and `-F`), logging to `.outdo/bg/<task>.log`.
+- For a service it waits for the [readiness probe](#readiness-probes) — up to the probe's `timeoutMs` plus 10s. A service that exits first is reported with the end of its log; one that never gets ready is stopped and reported. A plain task just starts: `▸ build running in the background`.
+- Starting something that is already running is a usage error.
+- `bg ps` (also plain `outdo bg`, or `--json`) shows `starting`, `running` or `exited`; exited runs are shown once and then forgotten.
+- `bg stop` sends SIGTERM to the run's process group, so outdo stops its tasks the normal way (abort signal → 5s grace → tree kill), then kills whatever is left. On Windows it kills the process tree.
+
+State lives in `.outdo/bg/` next to your `do.ts`.

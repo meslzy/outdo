@@ -92,7 +92,7 @@ bunx outdo ci check                  # in GitHub Actions: only what changed, fol
 outdo ci init                        # writes .github/workflows/ci.yml
 outdo affected deploy --github-output   # deploy=true|false for `if:` conditions
 outdo hooks install                  # install the hooks declared in do.ts
-outdo bg start dev; outdo bg ps; outdo bg logs dev --follow; outdo bg stop
+outdo bg start dev; outdo bg ps; outdo bg logs dev -f; outdo bg stop
 outdo doctor                         # run every task's `requires` checks
 outdo prune --docker                 # out/json/: package.jsons + lockfile for a Docker layer
 ```

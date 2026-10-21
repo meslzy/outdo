@@ -132,6 +132,14 @@ export default defineConfig({
 						text: "Workspaces",
 						link: "/guide/workspaces",
 					},
+					{
+						text: "Safety",
+						link: "/guide/safety",
+					},
+					{
+						text: "CI & Deploys",
+						link: "/guide/ci-cd",
+					},
 				],
 			},
 			{

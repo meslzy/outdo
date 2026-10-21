@@ -250,3 +250,52 @@ describe("extractRunnerFlags", () => {
 		).toThrow(OutdoError);
 	});
 });
+
+describe("short runner flags and bg logs -f", () => {
+	test("-y and -m after the task name, unless the task claims the alias", () => {
+		expect(
+			extractRunnerFlags(
+				[
+					"-m",
+					"prod",
+					"-y",
+				],
+				new Set(),
+			),
+		).toEqual({
+			argv: [],
+			mode: "prod",
+			yes: true,
+		});
+		expect(
+			extractRunnerFlags(
+				[
+					"-y",
+				],
+				new Set(),
+				new Set([
+					"y",
+				]),
+			),
+		).toEqual({
+			argv: [
+				"-y",
+			],
+		});
+	});
+
+	test("bg logs -f follows", () => {
+		expect(
+			parseCli([
+				"bg",
+				"logs",
+				"dev",
+				"-f",
+			]).command,
+		).toEqual({
+			kind: "bg-logs",
+			task: "dev",
+			follow: true,
+		});
+	});
+});

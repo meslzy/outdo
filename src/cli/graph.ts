@@ -40,11 +40,11 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 									}
 								: {}),
 							...(edge.step === true
-							? {
-									step: true,
-								}
-							: {}),
-						...(edge.optional
+								? {
+										step: true,
+									}
+								: {}),
+							...(edge.optional
 								? {
 										optional: true,
 									}
