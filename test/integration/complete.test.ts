@@ -211,3 +211,88 @@ describe.skipIf(Bun.which("zsh") === null)("zsh completion script", () => {
 		]);
 	});
 });
+
+/**
+ * Runs the real `outdo completion bash` functions under bash: COMP_WORDS and
+ * COMP_CWORD are set as bash would, `complete` is stubbed, COMPREPLY printed.
+ */
+const BASH_HARNESS = `
+outdo() { "$OUTDO_BUN" "$OUTDO_CLI" "$@"; }
+complete() { :; }
+eval "$(outdo completion bash)"
+fn=$1
+shift
+COMP_WORDS=("$@")
+COMP_CWORD=$(( \${#COMP_WORDS[@]} - 1 ))
+COMPREPLY=()
+"$fn"
+printf '%s\n' "\${COMPREPLY[@]}"
+`;
+
+async function bashComplete(fn: string, words: string[]): Promise<string[]> {
+	const proc = Bun.spawn(
+		[
+			"bash",
+			"--norc",
+			"--noprofile",
+			"-c",
+			BASH_HARNESS,
+			"bash",
+			fn,
+			...words,
+		],
+		{
+			cwd: FIXTURE,
+			stdout: "pipe",
+			stderr: "pipe",
+			env: {
+				...process.env,
+				NO_COLOR: "1",
+				OUTDO_BUN: process.execPath,
+				OUTDO_CLI: CLI,
+			},
+		},
+	);
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+	expect(stderr).toBe("");
+	expect(exitCode).toBe(0);
+	return stdout.split("\n").filter((line) => line !== "");
+}
+
+describe.skipIf(Bun.which("bash") === null)("bash completion script", () => {
+	test("first word: task names", async () => {
+		const offered = await bashComplete("_outdo", [
+			"outdo",
+			"gr",
+		]);
+		expect(offered).toEqual([
+			"greet",
+			"graph",
+		]);
+	});
+
+	test("`bunx outdo` completes like `outdo`", async () => {
+		const offered = await bashComplete("_outdo_bunx", [
+			"bunx",
+			"outdo",
+			"gr",
+		]);
+		expect(offered).toEqual([
+			"greet",
+			"graph",
+		]);
+	});
+
+	test("other `bunx` packages are left alone", async () => {
+		const offered = await bashComplete("_outdo_bunx", [
+			"bunx",
+			"vite",
+			"",
+		]);
+		expect(offered).toEqual([]);
+	});
+});
