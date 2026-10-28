@@ -1,10 +1,12 @@
 name: Release
 
 # Publishes to npm via trusted publishing (OIDC — no token stored in the repo).
-# One-time setup: publish once manually, then register this workflow as the
-# package's trusted publisher on npmjs.com (owner meslzy, repo outdo,
-# workflow release.yml). After that, bumping package.json version on main
-# publishes automatically; an unchanged version skips with a warning.
+# One-time setup on npmjs.com: @meslzy/outdo → Settings → Trusted Publisher →
+# GitHub Actions, with owner "meslzy", repository "outdo", workflow filename
+# "release.yml", environment left empty. After that, bumping package.json
+# version on main publishes automatically; an unchanged version skips with a
+# warning. A failed release can be retried from the Actions tab or with
+# `gh workflow run release.yml` — every step is idempotent.
 
 on:
   push:
@@ -83,11 +85,24 @@ jobs:
 
       - name: Update npm (OIDC needs npm >= 11.5.1)
         if: steps.check.outputs.skip == 'false'
-        run: npm install -g npm@latest
+        run: |
+          npm install -g npm@latest
+          version=$(npm --version)
+          echo "npm $version"
+          if [ "$(printf '%s\n' 11.5.1 "$version" | sort -V | head -1)" != "11.5.1" ]; then
+            echo "::error::npm $version is too old for trusted publishing (needs >= 11.5.1)"
+            exit 1
+          fi
 
       - name: Publish
         if: steps.check.outputs.skip == 'false'
-        run: npm publish --access public
+        # No token: npm exchanges this job's OIDC identity for a short-lived
+        # publish token, and attaches provenance on its own.
+        run: |
+          if ! npm publish --access public; then
+            echo "::error title=npm publish failed::If the log above says ENEEDAUTH or E404, npm did not accept this workflow as a trusted publisher. On npmjs.com: @meslzy/outdo → Settings → Trusted Publisher → GitHub Actions — owner meslzy, repository outdo, workflow release.yml, no environment. Then re-run this workflow."
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ""
 

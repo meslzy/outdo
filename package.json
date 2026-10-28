@@ -14,7 +14,7 @@
 	},
 	"homepage": "https://meslzy.github.io/outdo/",
 	"bin": {
-		"outdo": "./dist/cli.js"
+		"outdo": "dist/cli.js"
 	},
 	"exports": {
 		".": {
