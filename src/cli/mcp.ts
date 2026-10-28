@@ -207,6 +207,7 @@ async function runTool(entry: ToolEntry, input: Record<string, unknown>, signal:
 			env: {
 				...process.env,
 				NO_COLOR: "1",
+				OUTDO_VIA: "mcp",
 			},
 		},
 	);

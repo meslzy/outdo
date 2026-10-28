@@ -227,6 +227,67 @@ async function validateArg(task: Task, flag: string, def: ArgDef, value: unknown
 }
 
 export async function parseTaskArgs(task: Task, argv: readonly string[]): Promise<ArgValues> {
+	const values = rawTaskArgs(task, argv);
+	const out: ArgValues = {};
+	const missing: string[] = [];
+	for (const [flag, def] of Object.entries(task.args)) {
+		const given = values[flag];
+		if (given === undefined && def.schema === undefined && def.required) {
+			missing.push(flag);
+			continue;
+		}
+		const value = given === undefined ? absentValue(def) : coerce(def, given);
+		out[flag] = await validateArg(task, flag, def, value);
+	}
+	if (missing.length > 0) {
+		throw new OutdoError(
+			"usage",
+			`Task "${task.name}" requires ${missing.map((f) => `--${f}`).join(", ")}. See "outdo ${task.name} --help".`,
+			{
+				task: task.name,
+				missing,
+			},
+		);
+	}
+	return out;
+}
+
+/**
+ * The flags a command line actually gives a task, for the usage log: `name`,
+ * or `name=value` for flags with fixed choices (free-form values are never
+ * kept). Bare words count as their positional flag. Unparseable argv: none.
+ */
+export function givenFlags(task: Task, argv: readonly string[]): string[] {
+	let values: Record<string, unknown>;
+	try {
+		values = rawTaskArgs(task, argv);
+	} catch {
+		return [];
+	}
+	const out: string[] = [];
+	for (const [flag, def] of Object.entries(task.args)) {
+		const given = values[flag];
+		if (given === undefined) {
+			continue;
+		}
+		if (def.choices === undefined) {
+			out.push(flag);
+			continue;
+		}
+		for (const value of Array.isArray(given)
+			? given
+			: [
+					given,
+				]) {
+			const text = String(value);
+			out.push(def.choices.includes(text) ? `${flag}=${text}` : flag);
+		}
+	}
+	return out;
+}
+
+/** Tokens -> raw flag values (bare words filled into positional flags); usage errors throw. */
+function rawTaskArgs(task: Task, argv: readonly string[]): Record<string, unknown> {
 	const options: Record<
 		string,
 		{
@@ -308,29 +369,7 @@ export async function parseTaskArgs(task: Task, argv: readonly string[]): Promis
 			},
 		);
 	}
-
-	const out: ArgValues = {};
-	const missing: string[] = [];
-	for (const [flag, def] of Object.entries(task.args)) {
-		const given = values[flag];
-		if (given === undefined && def.schema === undefined && def.required) {
-			missing.push(flag);
-			continue;
-		}
-		const value = given === undefined ? absentValue(def) : coerce(def, given);
-		out[flag] = await validateArg(task, flag, def, value);
-	}
-	if (missing.length > 0) {
-		throw new OutdoError(
-			"usage",
-			`Task "${task.name}" requires ${missing.map((f) => `--${f}`).join(", ")}. See "outdo ${task.name} --help".`,
-			{
-				task: task.name,
-				missing,
-			},
-		);
-	}
-	return out;
+	return values;
 }
 
 /**

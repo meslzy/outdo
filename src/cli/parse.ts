@@ -103,6 +103,14 @@ export type Command =
 			kind: "doctor";
 	  }
 	| {
+			kind: "usage";
+			/** Words naming one task (`db reset`), or none for the whole report. */
+			task: string[];
+			since: string | undefined;
+			all: boolean;
+			history: boolean;
+	  }
+	| {
 			kind: "pick";
 	  }
 	| {
@@ -158,6 +166,7 @@ export const SUBCOMMANDS = new Set([
 	"prune",
 	"mcp",
 	"doctor",
+	"usage",
 	"skill",
 	"__complete",
 ]);
@@ -315,6 +324,17 @@ const COMMAND_OPTIONS: Record<
 	},
 	skill: {
 		global: {
+			type: "boolean",
+		},
+	},
+	usage: {
+		since: {
+			type: "string",
+		},
+		all: {
+			type: "boolean",
+		},
+		"no-history": {
 			type: "boolean",
 		},
 	},
@@ -677,6 +697,14 @@ export function parseCli(argv: readonly string[]): ParsedCli {
 	} else if (first === "doctor") {
 		command = {
 			kind: "doctor",
+		};
+	} else if (first === "usage") {
+		command = {
+			kind: "usage",
+			task: positionals,
+			since: values.since as string | undefined,
+			all: values.all === true,
+			history: values["no-history"] !== true,
 		};
 	} else if (first === "graph") {
 		command = {

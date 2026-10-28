@@ -23,6 +23,7 @@ Usage
   outdo explain <task>           Explain the plan: cache verdicts, inputs, backend
   outdo graph [--dot]            Print the dependency graph (mermaid or dot)
   outdo doctor                   Check every task's "requires"
+  outdo usage [task]             What runs most, what never runs, flags never passed, duplicates
   outdo --print-env <task>       Explain resolved env + validate the task's schema
 
 Background services
@@ -145,6 +146,10 @@ async function main(): Promise<number> {
 		case "doctor": {
 			const { doctorCommand } = await import("~/cli/doctor");
 			return await doctorCommand(flags);
+		}
+		case "usage": {
+			const { usageCommand } = await import("~/cli/usage");
+			return await usageCommand(command, flags);
 		}
 		case "pick": {
 			const { pickCommand } = await import("~/cli/pick");

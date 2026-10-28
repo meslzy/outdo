@@ -164,6 +164,7 @@ export async function bgStart(command: BgStart, flags: GlobalFlags): Promise<num
 		env: {
 			...process.env,
 			OUTDO_BG_STATE: readyFile(statePath),
+			OUTDO_VIA: "bg",
 			NO_COLOR: "1",
 		},
 	});

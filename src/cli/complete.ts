@@ -143,6 +143,10 @@ const SUBCOMMANDS: [
 		"check every task's requirements",
 	],
 	[
+		"usage",
+		"most used, never used, duplicates",
+	],
+	[
 		"bg",
 		"background runs: start, ps, logs, stop",
 	],
@@ -418,6 +422,7 @@ const GLOBAL_VALUE_FLAGS = new Set([
 	"--print-env",
 	"--from",
 	"--until",
+	"--since",
 ]);
 
 export async function completeCommand(words: string[]): Promise<number> {
@@ -511,6 +516,16 @@ export async function completeCommand(words: string[]): Promise<number> {
 			if (previous === "--concurrency" || previous === "-j") {
 				return flush();
 			}
+			if (previous === "--since") {
+				for (const span of [
+					"7d",
+					"30d",
+					"90d",
+				]) {
+					emit(span, "usage window");
+				}
+				return flush();
+			}
 			const found = snap === undefined ? undefined : findTask(snap, sub === "run" ? positionals.slice(1) : positionals);
 			if (previous === "--from" || previous === "--until") {
 				for (const step of found?.task.steps ?? []) {
@@ -540,6 +555,30 @@ export async function completeCommand(words: string[]): Promise<number> {
 				}
 				return flush();
 			}
+		}
+
+		if (current.startsWith("-") && sub === "usage") {
+			for (const [flag, desc] of [
+				[
+					"--since",
+					"only usage since 30d / 2w / a date",
+				],
+				[
+					"--all",
+					"every task, used or not",
+				],
+				[
+					"--no-history",
+					"leave shell history out",
+				],
+				[
+					"--json",
+					"machine-readable report",
+				],
+			] as const) {
+				emit(flag, desc);
+			}
+			return flush();
 		}
 
 		if (current.startsWith("-")) {
@@ -623,6 +662,13 @@ export async function completeCommand(words: string[]): Promise<number> {
 				for (const hook of snap?.hooks ?? []) {
 					emit(hook, "git hook");
 				}
+			}
+			return flush();
+		}
+
+		if (sub === "usage") {
+			if (positionals.length === 1) {
+				emitTasks();
 			}
 			return flush();
 		}

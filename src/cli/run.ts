@@ -41,6 +41,7 @@ import { checkRequires, requiresFailure } from "~/core/requires";
 import { retryDelayMs, sleepAbortable } from "~/core/retry";
 import type { StartedTask, TaskResult } from "~/core/scheduler";
 import { isChain, schedule } from "~/core/scheduler";
+import { recordRun, type UsageVia } from "~/core/usage";
 
 export type { SharedRunState } from "~/cli/plan";
 
@@ -58,11 +59,42 @@ type RunLikeCommand = Extract<
  */
 let backgroundState: string | undefined;
 
-export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): Promise<number> {
+/** Where a run came from, for the usage log. `outdo bg` and the MCP server pass theirs as OUTDO_VIA. */
+function runVia(command: RunLikeCommand, flags: GlobalFlags, origin: UsageOrigin): UsageVia {
+	const passed = process.env.OUTDO_VIA;
+	delete process.env.OUTDO_VIA;
+	if (process.env.OUTDO_NESTED === "1") {
+		return "nested";
+	}
+	if (passed === "bg" || passed === "mcp") {
+		return passed;
+	}
+	if (command.kind === "ci") {
+		return "ci";
+	}
+	if (origin.via !== undefined) {
+		return origin.via;
+	}
+	return flags.watch ? "watch" : "cli";
+}
+
+export interface UsageOrigin {
+	via?: "pick" | "hook";
+	hook?: string;
+}
+
+export async function runCommand(
+	command: RunLikeCommand,
+	flags: GlobalFlags,
+	origin: UsageOrigin = {},
+): Promise<number> {
 	if (process.env.OUTDO_BG_STATE !== undefined) {
 		backgroundState = process.env.OUTDO_BG_STATE;
 		delete process.env.OUTDO_BG_STATE;
 	}
+	const via = runVia(command, flags, origin);
+	// An outdo run started by one of this run's tasks records itself as nested.
+	process.env.OUTDO_NESTED = "1";
 	if (flags.watch && flags.json) {
 		throw new OutdoError("usage", "--watch cannot be combined with --json (watch is a streaming mode).");
 	}
@@ -137,6 +169,18 @@ export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): P
 		return printDryRun(state, result.requested, flags, decisions, result.affected);
 	}
 
+	const usage = recordRun(state.project, {
+		via,
+		hook: origin.hook,
+		tasks: [
+			...state.requestedNames,
+			...(result.affected?.dropped ?? []),
+		],
+		ran: state.planned.map((t) => t.name),
+		flags: state.targetFlags,
+		mode: state.mode,
+	});
+
 	if (flags.watch) {
 		const { runWatch } = await import("~/cli/watch-run");
 		return await runWatch(state, flags);
@@ -158,6 +202,7 @@ export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): P
 	}
 	const cleanup = await planFinally(state, started, succeeded);
 	let cleanupFailures: FailedOutput[] = [];
+	let cleanupResults = new Map<string, TaskResult>();
 	if (cleanup !== undefined) {
 		console.error(
 			dim(
@@ -169,7 +214,15 @@ export async function runCommand(command: RunLikeCommand, flags: GlobalFlags): P
 		const after = await executePlan(cleanup, flags);
 		cleanupFailures = after.failures;
 		error ??= after.error;
+		cleanupResults = after.results;
 	}
+	usage?.end(
+		[
+			...main.results.values(),
+			...cleanupResults.values(),
+		],
+		error === undefined,
+	);
 
 	if (flags.ci) {
 		const errors = new Map<string, string>();

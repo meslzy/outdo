@@ -215,5 +215,8 @@ export async function pickCommand(flags: GlobalFlags): Promise<number> {
 			rest: [],
 		},
 		flags,
+		{
+			via: "pick",
+		},
 	);
 }

@@ -296,3 +296,52 @@ describe.skipIf(Bun.which("bash") === null)("bash completion script", () => {
 		expect(offered).toEqual([]);
 	});
 });
+
+describe("__complete: outdo usage", () => {
+	test("a task name, the command's own flags, --since spans", async () => {
+		expect(
+			await complete([
+				"--",
+				"",
+			]),
+		).toContain("usage");
+		expect(
+			await complete([
+				"--",
+				"usage",
+				"",
+			]),
+		).toContain("build");
+		const flags = await complete([
+			"--",
+			"usage",
+			"--",
+		]);
+		expect(flags).toEqual([
+			"--since",
+			"--all",
+			"--no-history",
+			"--json",
+		]);
+		expect(
+			await complete([
+				"--",
+				"usage",
+				"--since",
+				"",
+			]),
+		).toEqual([
+			"7d",
+			"30d",
+			"90d",
+		]);
+		expect(
+			await complete([
+				"--",
+				"usage",
+				"build",
+				"",
+			]),
+		).toEqual([]);
+	});
+});

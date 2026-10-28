@@ -91,6 +91,10 @@ export async function hooksCommand(command: HooksCommand, flags: GlobalFlags): P
 			rest: command.rest,
 		},
 		flags,
+		{
+			via: "hook",
+			hook,
+		},
 	);
 	if (spec.restage) {
 		const added = await restage(project.rootDir, before);

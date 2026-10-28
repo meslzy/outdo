@@ -15,7 +15,7 @@ import { loadProjectFromCwd } from "~/cli/load";
 import type { GlobalFlags } from "~/cli/parse";
 import { extractRunnerFlags } from "~/cli/parse";
 import { findTaskMatches } from "~/cli/resolve-task";
-import { applyDefaults, parseTaskArgs, renderTaskHelp, wantsTaskHelp } from "~/core/argspec";
+import { applyDefaults, givenFlags, parseTaskArgs, renderTaskHelp, wantsTaskHelp } from "~/core/argspec";
 import type { ResolvedEnv } from "~/core/envresolve";
 import { layerEnvFiles, resolveEnv, validateAll } from "~/core/envresolve";
 import { OutdoError } from "~/core/errors";
@@ -40,6 +40,8 @@ export interface SharedRunState {
 	/** The single requested task carrying parsed CLI flags (multi-task runs: none). */
 	target: Task | undefined;
 	targetArgs: ArgValues;
+	/** Flags the command line gave the target (usage log: names, choice values). */
+	targetFlags: readonly string[];
 	/** Default arg values for every planned task (deps, multi-task runs). */
 	defaultArgs: Map<string, ArgValues>;
 	rest: string[];
@@ -357,6 +359,7 @@ export async function preparePlan(
 		};
 	}
 	const targetArgs = target !== undefined ? await parseTaskArgs(target, taskArgv) : {};
+	const targetFlags = target !== undefined ? givenFlags(target, taskArgv) : [];
 
 	// --from/--until trim the target's steps for this run only.
 	const tasks = new Map(project.tasks);
@@ -428,6 +431,7 @@ export async function preparePlan(
 			requestedNames: new Set(requested.map((t) => t.name)),
 			target,
 			targetArgs,
+			targetFlags,
 			defaultArgs,
 			rest: [
 				...input.rest,
@@ -499,6 +503,7 @@ export async function planFinally(
 		requestedNames: new Set(owed),
 		target: undefined,
 		targetArgs: {},
+		targetFlags: [],
 		defaultArgs,
 		rest: [],
 		envOutputs,
