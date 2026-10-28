@@ -1,0 +1,11 @@
+{
+	"name": "@ws/app",
+	"private": true,
+	"dependencies": {
+		"@ws/lib": "workspace:*"
+	},
+	"scripts": {
+		"tsc": "echo APP-TSC",
+		"test": "echo APP-TEST"
+	}
+}

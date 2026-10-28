@@ -7,6 +7,9 @@ import type { DepEdge } from "~/core/model";
 
 function edgeLabel(edge: DepEdge): string | undefined {
 	const parts: string[] = [];
+	if (edge.step === true) {
+		parts.push("step");
+	}
 	if (edge.condition !== undefined) {
 		parts.push(typeof edge.condition === "string" ? `if ${edge.condition}` : "if <fn>");
 	}
@@ -34,6 +37,11 @@ export async function graphCommand(dot: boolean, flags: GlobalFlags): Promise<nu
 							...(edge.condition !== undefined
 								? {
 										if: typeof edge.condition === "string" ? edge.condition : "<fn>",
+									}
+								: {}),
+							...(edge.step === true
+								? {
+										step: true,
 									}
 								: {}),
 							...(edge.optional

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCli } from "./helpers";
@@ -59,7 +59,7 @@ describe("fingerprint cache", () => {
 		expect(forced.stdout).toContain("COMPILED");
 	});
 
-	test("deleting a declared output forces a rerun", async () => {
+	test("deleting a declared output restores it from the cache instead of rerunning", async () => {
 		await runCli(dir, [
 			"compile",
 		]);
@@ -67,10 +67,19 @@ describe("fingerprint cache", () => {
 			recursive: true,
 			force: true,
 		});
-		const rerun = await runCli(dir, [
+		const restored = await runCli(dir, [
 			"compile",
 		]);
-		expect(rerun.stdout).toContain("COMPILED");
+		expect(restored.exitCode).toBe(0);
+		expect(restored.stdout).not.toContain("COMPILED");
+		expect(restored.stderr).toContain("outputs restored");
+		expect(existsSync(join(dir, "out"))).toBe(true);
+
+		const forced = await runCli(dir, [
+			"--force",
+			"compile",
+		]);
+		expect(forced.stdout).toContain("COMPILED");
 	});
 
 	test("upstream fingerprint change cascades to dependents", async () => {

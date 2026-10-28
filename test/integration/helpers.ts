@@ -23,6 +23,8 @@ export function copyFixture(fixtureName: string): string {
 	const dir = mkdtempSync(join(tmpdir(), `outdo-${fixtureName.replaceAll(/[^a-z0-9]/gi, "-")}-`));
 	cpSync(fixture, dir, {
 		recursive: true,
+		// State from in-place fixture runs (cache, completion) must not leak into copies.
+		filter: (src) => !/[\\/]\.outdo([\\/]|$)/.test(src),
 	});
 	for (const rel of [
 		...new Glob("**/do.ts").scanSync({

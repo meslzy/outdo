@@ -3,12 +3,14 @@ import type { Task } from "~/core/model";
 import type { ReportTask } from "~/core/report";
 import { assignLanes, buildReport, criticalPath, formatMs, toChromeTrace } from "~/core/report";
 import type { TaskResult } from "~/core/scheduler";
+import { TASK_EXTRAS } from "./task-extras";
 
 function makeTask(name: string, deps: string[] = [], persistent = false): Task {
 	return {
 		name,
 		desc: undefined,
 		group: undefined,
+		...TASK_EXTRAS,
 		deps,
 		depEdges: deps.map((dep) => ({
 			task: dep,

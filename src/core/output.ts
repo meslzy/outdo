@@ -1,7 +1,9 @@
 /**
  * Multiplexed child output. `stream` prefixes lines live; `grouped` buffers
  * per task and flushes atomically on completion (failures always flush,
- * unless --output-logs=none).
+ * unless --output-logs=none). In GitHub Actions (`outdo ci`) each flush is a
+ * collapsible `::group::`, and failed tasks' lines are kept so they can be
+ * printed again, unfolded, at the end of the run.
  */
 
 import { dim, prefixColor } from "~/core/logger";
@@ -19,17 +21,30 @@ export interface TaskSink {
 	finish(ok: boolean): void;
 }
 
+export interface FailedOutput {
+	name: string;
+	/** Raw lines (no prefix), stdout and stderr interleaved in arrival order. */
+	lines: string[];
+}
+
 export class OutputMultiplexer {
 	readonly #order: LogOrder;
 	readonly #logs: OutputLogs;
 	readonly #labelWidth: number;
 	readonly #dest: NodeJS.WriteStream;
+	readonly #githubGroups: boolean;
+	readonly #keepFailures: boolean;
+	/** Output of tasks that failed, for the end-of-run recap (CI mode). */
+	readonly failures: FailedOutput[] = [];
 
 	constructor(
 		order: LogOrder,
 		logs: OutputLogs,
 		taskNames: readonly string[],
 		dest: NodeJS.WriteStream = process.stdout,
+		ci?: {
+			groups: boolean;
+		},
 	) {
 		this.#order = order;
 		this.#logs = logs;
@@ -37,6 +52,8 @@ export class OutputMultiplexer {
 		// Task-stdout destination — redirected to stderr under `--json` so
 		// stdout carries exactly one machine-readable document.
 		this.#dest = dest;
+		this.#githubGroups = ci?.groups === true;
+		this.#keepFailures = ci !== undefined;
 	}
 
 	sink(name: string, onLine?: (line: string) => void): TaskSink {
@@ -56,12 +73,19 @@ export class OutputMultiplexer {
 			text: string;
 			isErr: boolean;
 		}[] = [];
+		const raw: string[] = [];
 		let truncated = false;
 
 		const emit = (line: string, isErr: boolean): void => {
 			// Observers (readiness log probes) see every raw line regardless of
 			// grouping or --output-logs.
 			onLine?.(line);
+			if (this.#keepFailures) {
+				raw.push(line);
+				if (raw.length > MAX_BUFFERED_LINES) {
+					raw.shift();
+				}
+			}
 			if (this.#logs === "none") {
 				return;
 			}
@@ -119,17 +143,34 @@ export class OutputMultiplexer {
 				if (buffering && buffered.length > 0) {
 					const show = this.#logs === "full" || (!ok && this.#logs !== "none");
 					if (show) {
+						// A group must wrap both streams on one fd, or the runner splits it.
+						const groups = this.#githubGroups;
+						if (groups) {
+							this.#dest.write(`::group::${name}${ok ? "" : " (failed)"}\n`);
+						}
 						if (truncated) {
 							this.#dest.write(`${prefix}${dim("[earlier output truncated]")}\n`);
 						}
 						// Preserve fd routing on flush, matching stream order.
 						for (const entry of buffered) {
-							(entry.isErr ? process.stderr : this.#dest).write(entry.text);
+							(entry.isErr && !groups ? process.stderr : this.#dest).write(entry.text);
+						}
+						if (groups) {
+							this.#dest.write("::endgroup::\n");
 						}
 					}
 					buffered.length = 0;
 					truncated = false;
 				}
+				if (!ok && this.#keepFailures) {
+					this.failures.push({
+						name,
+						lines: [
+							...raw,
+						],
+					});
+				}
+				raw.length = 0;
 			},
 		};
 	}

@@ -28,6 +28,8 @@ describe("outdo list", () => {
 		]);
 		const greet = parsed.tasks.find((t: { name: string }) => t.name === "greet");
 		expect(greet.args.name).toEqual({
+			choices: null,
+			schema: false,
 			type: "string",
 			short: null,
 			default: "world",

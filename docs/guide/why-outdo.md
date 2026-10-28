@@ -14,13 +14,14 @@ Every tool below is good at what it was built for. This page is the honest versi
 | Env **validation** | — | presence (`env()`) | presence (`requires`) | presence | — | filter-only | — | — | **schema (zod/valibot/arktype), pre-flight** |
 | Env provenance | — | — | — | ✓ (`env --json-extended`) | — | — | — | — | ✓ `--print-env` |
 | Per-task CLI flags | — | params (untyped) | raw `CLI_ARGS` | ✓ usage spec | — | — | executor schemas | — | **TS-inferred + auto help** |
-| Caching | mtime | content-hash skip (unstable) | checksum skip | mtime + experimental artifacts | **artifact restore** | **artifact restore + log replay** | **artifact restore + log replay** | — | checksum **skip only** |
+| Caching | mtime | content-hash skip (unstable) | checksum skip | mtime + experimental artifacts | **artifact restore** | **artifact restore + log replay** | **artifact restore + log replay** | — | checksum skip + **local restore + log replay** |
 | Remote cache | — | — | — | experimental | GH Actions only | **✓ free tier** | Nx Cloud | — | **✗** |
 | Watch mode | — | — | ✓ | ✓ | ✓ | ✓ | ✓ | — | ✓ with service restarts |
 | Service readiness | — | — | — | — | **✓ `readyWhen`** | persistent, not dependable | no readiness | — | **✓ log / port / http probes** |
 | Git-affected runs | — | — | — | — | — | ✓ `--filter=[ref]` | ✓ `nx affected` | — | ✓ `--affected` |
 | Cache explainability | — | — | — | — | — | `--summarize` | ✓ Nx Cloud UI | — | **✓ `explain` — per-component diff, local** |
 | Run report / trace | — | — | — | — | — | `--summarize` JSON | ✓ | — | **✓ `--json` report + Chrome trace** |
+| Unused / duplicate tasks | — | — | — | — | — | — | — | — | **✓ `outdo usage` — local run log + shell history** |
 | Runtime needed | none (C) | none (Rust) | none (Go) | none (Rust) | Node | Node/npm | Node | Bun | **Bun ≥ 1.4 only** |
 | Since / backing | 1988, FSF | 2016, community | ~2017, community | Rust, community | 2022, Google repo | 2021, Vercel | 2017, Nx Ltd | Oven | **2026, one maintainer** |
 
@@ -36,7 +37,7 @@ Every tool below is good at what it was built for. This page is the honest versi
 
 ::: warning Read this before adopting
 - **No remote cache.** Turborepo and Nx share build artifacts across CI machines; outdo's cache is per-machine.
-- **Skip, not restore.** A cache hit means "don't re-run" — outdo never re-materializes a deleted `dist/` from an archive the way Turbo/Nx/wireit can. Delete outputs → full re-run.
+- **Local restore only.** A deleted `dist/` comes back from the latest successful run on *this* machine (with its log replayed); there is no shared or content-addressed artifact store like Turbo/Nx/wireit.
 - **No content-addressable storage, no distributed execution** (Nx Agents territory).
 - **Bun ≥ 1.4 or nothing.** No Node, no Deno. Make/just/Task/mise are single binaries that run anywhere.
 - **Config is code.** `do.ts` is arbitrary TypeScript executed on load — maximum power, but external tools can't statically analyze your graph the way they can a YAML/JSON file.

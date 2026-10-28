@@ -1,0 +1,8 @@
+{
+	"name": "usage-fixture",
+	"private": true,
+	"scripts": {
+		"lint": "echo linting",
+		"test": "echo package-test"
+	}
+}

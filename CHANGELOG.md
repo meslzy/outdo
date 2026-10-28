@@ -7,6 +7,101 @@ All notable changes to outdo are documented here. The format follows
 Each published version gets a git tag (`v<version>`) and a GitHub Release
 created automatically by the release workflow.
 
+## 0.1.0 - 2026-10-28
+
+The big release: outdo becomes the whole task layer — package.json scripts,
+turbo, makefiles, .githooks, paths filters and compose wrappers included.
+
+### Task authoring
+
+- One-line tasks: an entry can be a command string or a list of commands;
+  `run` accepts the same. Args after `--` are appended.
+- `task()` is optional: `env`, `args` and `deps` on an inline object type
+  `run`'s context (needs TypeScript 6 for full narrowing).
+- Flags can be any Standard Schema (`z.enum(...)`, `z.coerce.number()`,
+  arrays) — validated before anything runs, with choices, defaults and
+  descriptions read from the schema's JSON Schema. ArgSpec gains `choices`
+  (enforced) and `suggest` (completion only).
+- `positional`: flags given as bare words (`outdo logs api`).
+- `steps` (one after another, `--from` / `--until`) and `finally` (always runs
+  afterwards).
+- `ns()` namespaces: `outdo db reset` / `outdo db:reset`, `outdo db` lists.
+- package.json scripts are tasks (`bun run <script>`); a repo needs no
+  do.ts. A do.ts entry without `run`/`steps` decorates the same-named script.
+- `defineTasks(tasks, { modes, members, hooks })`: `--mode` with
+  `.env.<mode>` files and `ctx.mode`; workspace member defaults; git hooks.
+- New fields: `envFiles`, `protect`, `confirm`, `requires`, `readonly`,
+  `destructive`. New context: `ctx.root`, `ctx.mode`, `ctx.ssh`. `Shell` type
+  exported.
+- Workspaces: member package.json scripts become `pkg#task`; `^name` and
+  `pkg#name` deps cross packages (replaces turbo's `dependsOn`).
+- `@meslzy/outdo/compose`: up, down, restart, rebuild, fresh, logs, ps,
+  shell, exec.
+
+### Commands
+
+- `outdo run <task>`, `outdo -i` (picker), `outdo doctor`.
+- `outdo bg start | ps | logs | stop` — background runs that return once ready.
+- `outdo ci <task>` (affected only, folded logs, failure recap, GitHub
+  annotations and step summary) and `outdo ci init`.
+- `outdo affected <task> --github-output`.
+- `outdo hooks install | uninstall | list | run` with `restage`.
+- `outdo prune --docker`.
+- `outdo mcp` — tasks as MCP tools.
+- `outdo skill install [--global]` — the bundled agent skill (also
+  `bunx skills add meslzy/outdo`).
+- Runner flags `--mode`, `--yes`, `--from`, `--until` may follow the task name.
+
+### Usage report
+
+- Every run is recorded in `.outdo/usage.jsonl`: tasks asked for, everything
+  planned, flags given (values only for flags with choices), mode, where it
+  came from (cli, picker, watch, bg, ci, hook, mcp, nested) and whether an
+  agent ran it (`AI_AGENT`, `CLAUDECODE`, ...). Off in CI and with
+  `OUTDO_NO_USAGE=1`; never under `--dry`.
+- `outdo usage [task] [--since 30d] [--all] [--no-history] [--json]`: most
+  used tasks (you / agent / as a dependency / shell history), tasks nothing
+  uses, tasks only external files use (CI workflows, package.json scripts,
+  Dockerfiles, hooks), flags never passed, choices never picked, modes,
+  hooks, and duplicates — package.json scripts a do.ts task hides, entries
+  whose run is `bun run <own name>`, aliases, the same command or steps
+  twice, scripts that only call outdo. Shell history (zsh, bash, fish,
+  PowerShell) backfills the time before recording started.
+
+### Caching
+
+- Declared outputs are stored after a successful run and restored when
+  deleted (`✓ build (cached, outputs restored)`); logs are replayed on hits.
+
+### CLI & completion
+
+- Completion of flag values, positional values, namespaces, modes, steps and
+  packages; `bunx outdo` completes in every shell; the task list is cached in
+  `.outdo/complete.json` so Tab doesn't import do.ts.
+- zsh completion fixed (it errored on every Tab).
+- A global `outdo` hands over to the repo's installed copy
+  (`OUTDO_NO_LOCAL=1` to opt out).
+- `--affected` reads the base from GitHub Actions (PR base / previous push).
+
+### Changed (may affect existing setups)
+
+- A persistent task pulled in only as a dependency is now stopped when the
+  requested tasks finish; the run no longer waits on it. A requested service
+  still keeps the run alive.
+- Deleting declared outputs restores them from the cache instead of
+  re-running (`--force` re-runs).
+- `protect` / `confirm` tasks refuse to run without a terminal unless
+  `--yes` is given.
+- In workspaces, a bare name no longer reaches member package.json scripts
+  when the root has a task of that name (member do.ts tasks still fan out).
+- Unknown fields on a task object are a config error (exit 3).
+- `run`, `bg`, `ci`, `affected`, `hooks`, `prune`, `mcp`, `doctor`, `usage`
+  and `skill` are commands; a task with one of those names runs with
+  `outdo run <name>`.
+- `-m`, `-y`, `-i` are new global short flags.
+- New error code `refused` (exit 2) for declined confirmations and
+  `OUTDO_READONLY`.
+
 ## 0.0.1 - 2026-08-26
 
 First release.

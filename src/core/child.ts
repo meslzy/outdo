@@ -5,9 +5,10 @@
 
 import { resolve } from "node:path";
 import type { Subprocess } from "bun";
+import type { RunMessage } from "~/cli/worker";
 import { type Lifecycle, spawnDetachedFlag } from "~/core/lifecycle";
 import { colorsEnabled } from "~/core/logger";
-import type { Task } from "~/core/model";
+import type { ArgValues, Task } from "~/core/model";
 import type { TaskSink } from "~/core/output";
 import { OutputMultiplexer } from "~/core/output";
 import { READY_TIMEOUT_MS, startReadyWait } from "~/core/ready";
@@ -15,13 +16,16 @@ import type { StartedTask, TaskResult } from "~/core/scheduler";
 
 export interface ChildRunnerOptions {
 	configPath: string;
-	shellEnv: Record<string, string | undefined>;
+	/** The task's full shell env (dotenv cascade + its envFiles + process env). */
+	envFor: (task: Task) => Record<string, string | undefined>;
 	envOutputs: ReadonlyMap<string, unknown>;
-	argsFor: (task: Task) => Record<string, string | boolean | undefined>;
+	argsFor: (task: Task) => ArgValues;
 	restFor: (task: Task) => string[];
 	depsFor: (task: Task) => Record<string, unknown>;
 	sinkFor: (task: Task, onLine?: (line: string) => void) => TaskSink;
 	lifecycle: Lifecycle;
+	root: string;
+	mode: string;
 }
 
 interface ResultMessage {
@@ -44,8 +48,9 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 	const sink = opts.sinkFor(task, wait?.onLine);
 	let probeError: string | undefined;
 
+	const shellEnv = opts.envFor(task);
 	const env: Record<string, string> = {};
-	for (const [key, value] of Object.entries(opts.shellEnv)) {
+	for (const [key, value] of Object.entries(shellEnv)) {
 		if (value !== undefined) {
 			env[key] = value;
 		}
@@ -102,12 +107,17 @@ export function startChildTask(task: Task, opts: ChildRunnerOptions): StartedTas
 			configPath: task.sourceConfig,
 			taskName: task.localName,
 			fullName: task.name,
-			env: opts.envOutputs.get(task.name) ?? opts.shellEnv,
-			shellEnv: opts.shellEnv,
+			command: task.run === undefined ? task.command : undefined,
+			script: task.run === undefined && task.command === undefined ? task.script : undefined,
+			cwd: task.cwd,
+			env: opts.envOutputs.get(task.name) ?? shellEnv,
+			shellEnv,
 			args: opts.argsFor(task),
 			rest: opts.restFor(task),
 			depsData: opts.depsFor(task),
-		});
+			root: opts.root,
+			mode: opts.mode,
+		} satisfies RunMessage);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		sendError = `Task "${task.name}" could not start: IPC payload is not serializable (${message}). Env schema outputs and task data outputs must be plain data.`;

@@ -1,18 +1,33 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { FingerprintInputs } from "~/core/cache";
 import { cacheable, checkCache, diagnoseCache, writeCache } from "~/core/cache";
 import type { Task } from "~/core/model";
+import { TASK_EXTRAS } from "./task-extras";
 
 let dir: string;
+
+/** Remove the stored-outputs copies (keep the manifests). */
+function dropStore(root: string): void {
+	const cache = join(root, ".outdo", "cache");
+	for (const entry of readdirSync(cache)) {
+		if (!entry.endsWith(".json")) {
+			rmSync(join(cache, entry), {
+				recursive: true,
+				force: true,
+			});
+		}
+	}
+}
 
 function makeTask(overrides: Partial<Task> = {}): Task {
 	return {
 		name: "build",
 		desc: undefined,
 		group: undefined,
+		...TASK_EXTRAS,
 		deps: [],
 		depEdges: [],
 		env: undefined,
@@ -107,7 +122,32 @@ describe("checkCache", () => {
 		expect(forced.fingerprint).toBe(cold.fingerprint);
 	});
 
-	test("missing declared outputs turn a fingerprint match into a miss", async () => {
+	test("missing declared outputs are restored from the store on a fingerprint match", async () => {
+		const task = makeTask({
+			outputs: [
+				"out/**",
+			],
+		});
+		mkdirSync(join(dir, "out"));
+		writeFileSync(join(dir, "out", "bundle.js"), "bundled");
+		const cold = await checkCache(dir, task, baseInputs(), false);
+		await writeCache(dir, task, cold);
+		expect((await checkCache(dir, task, baseInputs(), false)).hit).toBe(true);
+
+		rmSync(join(dir, "out"), {
+			recursive: true,
+		});
+		const preview = await checkCache(dir, task, baseInputs(), false, false);
+		expect(preview.hit).toBe(true);
+		expect(existsSync(join(dir, "out", "bundle.js"))).toBe(false); // previews never write
+
+		const restored = await checkCache(dir, task, baseInputs(), false);
+		expect(restored.hit).toBe(true);
+		expect(restored.restored).toBe(true);
+		expect(readFileSync(join(dir, "out", "bundle.js"), "utf8")).toBe("bundled");
+	});
+
+	test("missing outputs with no stored copy turn a fingerprint match into a miss", async () => {
 		const task = makeTask({
 			outputs: [
 				"out/**",
@@ -117,8 +157,7 @@ describe("checkCache", () => {
 		writeFileSync(join(dir, "out", "bundle.js"), "x");
 		const cold = await checkCache(dir, task, baseInputs(), false);
 		await writeCache(dir, task, cold);
-		expect((await checkCache(dir, task, baseInputs(), false)).hit).toBe(true);
-
+		dropStore(dir);
 		rmSync(join(dir, "out"), {
 			recursive: true,
 		});
@@ -276,6 +315,7 @@ describe("diagnoseCache", () => {
 		writeFileSync(join(dir, "out", "x"), "x");
 		const cold = await checkCache(dir, task, baseInputs(), false);
 		await writeCache(dir, task, cold);
+		dropStore(dir);
 		rmSync(join(dir, "out"), {
 			recursive: true,
 		});

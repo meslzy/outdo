@@ -20,27 +20,45 @@ build: {
 A task is skipped only when **all** of these are unchanged:
 
 1. **Input file contents** — real content hashes with an mtime+size fast path: `touch` won't bust the cache, actual edits will
-2. **The task definition itself** — including the text of the `run` body; edit the code, invalidate the cache
+2. **The task definition itself** — including the text of the `run` body (or the command); edit the code, invalidate the cache
 3. **Validated env output** — change `DEPLOY_URL` and the task re-runs (only for tasks with an `env` schema)
 4. **CLI args and `--` passthrough**
 5. **Dependency fingerprints** — upstream changes cascade downstream automatically
 6. **Dependency [data outputs](/guide/tasks-and-deps#task-outputs-as-data)** — a dep whose `run()` returned a different value invalidates its consumers, even when the dep itself isn't cacheable
 
-Plus: every declared `outputs` glob must still match at least one file. Delete `dist/` and the task re-runs even though inputs are unchanged.
+Plus: every declared `outputs` glob must still match at least one file — or be [restorable](#deleted-outputs-come-back).
 
 Each component is hashed **separately** and stored in the manifest, which is what lets [`outdo explain`](#why-will-this-re-run) tell you exactly which one changed.
 
-## What it is — and isn't
+## What a hit gives you
 
-outdo's cache is **skip-if-unchanged**, not artifact restore. On a hit, the task simply doesn't run (`✓ build (cached)` in ~0ms). outdo does **not** store copies of your outputs and cannot re-materialize a deleted `dist/` from a cache archive — that's Turborepo/Nx territory (and why those tools exist). See [Why outdo?](/guide/why-outdo) for the honest comparison.
+On a hit the task doesn't run (`✓ build (cached)` in ~0ms), and three things come back from the last successful run:
 
-Fingerprints live in `.outdo/cache/` next to your `do.ts`.
+- its [data output](/guide/tasks-and-deps#task-outputs-as-data), replayed from the manifest, so dependents keep working across cache skips
+- its **declared outputs**, when you deleted them (below)
+- its **log**, printed again — for runs that used child processes (parallel plans, `--isolate`, `outdo ci`), outdo keeps the last 2,000 output lines of each cacheable task
+
+### Deleted outputs come back
+
+After a successful run, outdo copies the files matched by `outputs` into `.outdo/cache/` (the latest run only). When the fingerprint still matches but the outputs are gone, it copies them back instead of re-running:
+
+```txt
+$ rm -rf dist && outdo build
+✓ build (cached, outputs restored)
+```
+
+- Only a complete copy is restored; otherwise the task re-runs.
+- Outputs larger than 256 MB in total are not stored — those tasks re-run when their outputs go missing.
+- `--dry` and `explain` never write files; they report a restorable task as "would skip".
+- `--force` always re-runs (and stores fresh copies).
+
+This is a **local** cache: nothing is shared between machines. That's still Turborepo/Nx territory — see [Why outdo?](/guide/why-outdo).
+
+Cache state lives in `.outdo/cache/` next to your `do.ts`.
 
 ::: warning
-Add `.outdo/` to `.gitignore` — `outdo init` does this for you. Fingerprints are per-machine state, not shared artifacts.
+Add `.outdo/` to `.gitignore` — `outdo init` does this for you. The cache is per-machine state, not shared artifacts.
 :::
-
-On a hit, one thing *is* restored: the task's [data output](/guide/tasks-and-deps#task-outputs-as-data) is replayed from the manifest, so dependents keep working across cache skips.
 
 ## Why will this re-run?
 
@@ -76,7 +94,7 @@ outdo --dry build       # shows which planned tasks would be cache-skipped
 outdo explain build     # explains *why* each task will run or skip
 ```
 
-Tasks without `inputs` never cache — they run every time. Services (`persistent: true`) never cache either.
+Tasks without `inputs` never cache — they run every time. Services (`persistent: true`) and aggregation tasks (no `run`) never cache either. Command tasks and package.json scripts cache like any other task once you give them `inputs` (for a script, through a `do.ts` entry or [member defaults](/guide/workspaces#member-defaults-replacing-turbo)).
 
 ::: details Known blind spot: closures
 The fingerprint hashes the `run` function's **source text**. A value captured from outside the function body (a top-level constant, an import) can change without the text changing. Keep task-relevant values inside the body, model them as `env`/`args`, or use `--force` when in doubt.

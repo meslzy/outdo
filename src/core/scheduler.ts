@@ -4,7 +4,7 @@
  * (services unblock dependents on spawn and do not hold a slot).
  */
 
-import type { Task } from "~/core/model";
+import { predecessors, type Task } from "~/core/model";
 
 export interface TaskResult {
 	name: string;
@@ -62,7 +62,7 @@ export async function schedule(opts: ScheduleOptions): Promise<ScheduleOutcome> 
 	const dependentsOf = new Map<string, string[]>();
 	for (const name of opts.planned) {
 		const task = opts.tasks.get(name) as Task;
-		const deps = task.deps.filter((dep) => subset.has(dep));
+		const deps = predecessors(task).filter((dep) => subset.has(dep));
 		indegree.set(name, deps.length);
 		for (const dep of deps) {
 			let list = dependentsOf.get(dep);
@@ -218,7 +218,7 @@ export function isChain(tasks: ReadonlyMap<string, Task>, planned: readonly stri
 	const dependentsOf = new Map<string, string[]>();
 	for (const name of planned) {
 		const task = tasks.get(name) as Task;
-		const deps = task.deps.filter((dep) => subset.has(dep));
+		const deps = predecessors(task).filter((dep) => subset.has(dep));
 		indegree.set(name, deps.length);
 		for (const dep of deps) {
 			let list = dependentsOf.get(dep);

@@ -8,6 +8,7 @@
 import { realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import { OutdoError } from "~/core/errors";
+import { githubBase } from "~/core/github";
 import { compile, matches } from "~/core/globs";
 import { dependents } from "~/core/graph";
 import type { Project, Task } from "~/core/model";
@@ -114,6 +115,31 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 			`${baseArg}...HEAD`,
 		];
 	} else {
+		// In GitHub Actions the event says what to compare against: the PR base
+		// branch, or the previous tip for a push. A missing rev there means a
+		// shallow clone, which must be loud — "nothing changed" would skip work.
+		const gh = githubBase();
+		if (gh !== undefined && "commit" in gh) {
+			if (!(await revExists(gh.commit, rootDir))) {
+				throw new OutdoError(
+					"git",
+					`--affected: the previous push (${gh.commit.slice(0, 12)}) is not in this clone. Use actions/checkout with "fetch-depth: 0".`,
+				);
+			}
+			base = `${gh.commit.slice(0, 12)} (previous push)`;
+			diffArgs = [
+				"diff",
+				"--name-only",
+				gh.commit,
+				"HEAD",
+			];
+		}
+		if (gh !== undefined && "branch" in gh && !(await revExists(gh.branch, rootDir))) {
+			throw new OutdoError(
+				"git",
+				`--affected: ${gh.branch} is not in this clone. Use actions/checkout with "fetch-depth: 0".`,
+			);
+		}
 		// origin's default branch -> origin/main -> origin/master -> HEAD~1.
 		const sym = await git(
 			[
@@ -123,15 +149,20 @@ export async function detectChanged(rootDir: string, baseArg: string | undefined
 			],
 			rootDir,
 		);
-		const candidates = sym.ok
-			? [
-					sym.stdout.replace("refs/remotes/", ""),
-				]
-			: [
-					"origin/main",
-					"origin/master",
-				];
-		for (const candidate of candidates) {
+		const candidates =
+			gh !== undefined && "branch" in gh
+				? [
+						gh.branch,
+					]
+				: sym.ok
+					? [
+							sym.stdout.replace("refs/remotes/", ""),
+						]
+					: [
+							"origin/main",
+							"origin/master",
+						];
+		for (const candidate of diffArgs === undefined ? candidates : []) {
 			if (await revExists(candidate, rootDir)) {
 				const mergeBase = await git(
 					[

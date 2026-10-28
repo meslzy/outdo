@@ -6,7 +6,7 @@
 | --- | --- |
 | `0` | success (including all-cached runs) |
 | `1` | a task failed (or a service exited unexpectedly) |
-| `2` | usage error — unknown task/flag, bad flag value, filter matched nothing |
+| `2` | usage error — unknown task/flag, bad flag value, filter matched nothing — or a refusal: a protect/confirm question with no terminal (and no `--yes`), a "no" answer, or a task blocked by `OUTDO_READONLY` |
 | `3` | configuration or environment invalid — missing `do.ts`, dependency cycle, schema validation failure |
 | `130` | interrupted (Ctrl-C) |
 
@@ -24,7 +24,7 @@ Any error prints a stable shape on **stderr**:
 }
 ```
 
-Codes: `usage`, `config-not-found`, `config-invalid`, `unknown-task`, `cycle`, `env-invalid`, `task-failed`, `git`, `interrupted`.
+Codes: `usage`, `config-not-found`, `config-invalid`, `unknown-task`, `cycle`, `env-invalid`, `task-failed`, `git`, `refused`, `interrupted`.
 
 ## Run report (`--json`)
 

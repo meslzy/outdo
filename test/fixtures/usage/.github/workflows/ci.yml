@@ -1,0 +1,7 @@
+name: ci
+on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: bunx outdo deploy --mode prod --yes

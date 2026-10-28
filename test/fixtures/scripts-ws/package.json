@@ -1,0 +1,10 @@
+{
+	"name": "scripts-ws",
+	"private": true,
+	"workspaces": [
+		"packages/*"
+	],
+	"scripts": {
+		"lint": "echo ROOT-LINT"
+	}
+}

@@ -2,12 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { OutdoError } from "~/core/errors";
 import { applyConditions, edgeActive } from "~/core/graph";
 import type { DepEdge, Task } from "~/core/model";
+import { TASK_EXTRAS } from "./task-extras";
 
 function makeTask(name: string, depEdges: DepEdge[]): Task {
 	return {
 		name,
 		desc: undefined,
 		group: undefined,
+		...TASK_EXTRAS,
 		deps: depEdges.map((edge) => edge.task),
 		depEdges,
 		env: undefined,

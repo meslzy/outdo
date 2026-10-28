@@ -73,11 +73,14 @@ async function freePort(): Promise<number> {
 
 describe("service readiness", () => {
 	test("log probe: dependent starts only after the ready line", async () => {
+		// Stream order: grouped output would hold the service's lines until it exits.
 		const session = startSession(READY_FIXTURE, [
+			"--log-order=stream",
 			"uses:log",
 		]);
 		try {
 			await session.waitFor("LOG DEPENDENT RAN", 20_000);
+			expect(session.output()).toContain("SVC READY");
 			const out = session.output();
 			expect(out.indexOf("SVC READY")).toBeLessThan(out.indexOf("LOG DEPENDENT RAN"));
 		} finally {

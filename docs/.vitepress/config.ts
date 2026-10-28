@@ -88,7 +88,7 @@ export default defineConfig({
 				activeMatch: "/reference/",
 			},
 			{
-				text: "v0.0.1",
+				text: "v0.1.0",
 				link: "https://github.com/meslzy/outdo/releases",
 			},
 		],
@@ -131,6 +131,18 @@ export default defineConfig({
 					{
 						text: "Workspaces",
 						link: "/guide/workspaces",
+					},
+					{
+						text: "Safety",
+						link: "/guide/safety",
+					},
+					{
+						text: "CI & Deploys",
+						link: "/guide/ci-cd",
+					},
+					{
+						text: "Usage & Cleanup",
+						link: "/guide/usage",
 					},
 				],
 			},

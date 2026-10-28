@@ -37,6 +37,9 @@ const explainJson = async (cwd: string, task: string, env?: Record<string, strin
 		],
 		env,
 	);
+	if (result.exitCode !== 0) {
+		console.error(result.stderr);
+	}
 	expect(result.exitCode).toBe(0);
 	return JSON.parse(result.stdout) as ExplainJson;
 };
