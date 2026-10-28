@@ -721,6 +721,10 @@ describe.skipIf(!(await gitAvailable()))("git: affected, hooks", () => {
 			],
 			{
 				GITHUB_OUTPUT: output,
+				// Under GitHub Actions the base would be the PR base, which this
+				// throwaway repo does not have.
+				GITHUB_BASE_REF: "",
+				GITHUB_EVENT_NAME: "",
 			},
 		);
 		expect(r.exitCode).toBe(0);

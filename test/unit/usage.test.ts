@@ -279,17 +279,21 @@ describe("recordRun", () => {
 		})}\n`;
 		markSeen(p);
 		writeFileSync(usageLogPath(p.rootDir), line.repeat(4200));
-		recordRun(p, {
-			via: "cli",
-			tasks: [
-				"feed",
-			],
-			ran: [
-				"feed",
-			],
-			flags: [],
-			mode: "",
-		});
+		recordRun(
+			p,
+			{
+				via: "cli",
+				tasks: [
+					"feed",
+				],
+				ran: [
+					"feed",
+				],
+				flags: [],
+				mode: "",
+			},
+			{},
+		);
 		expect(statSync(usageLogPath(p.rootDir)).size).toBeLessThan(3 * 1024 * 1024);
 		const starts = readUsageLog(p.rootDir).starts;
 		expect(starts.at(-1)?.tasks).toEqual([
