@@ -7,7 +7,7 @@ All notable changes to outdo are documented here. The format follows
 Each published version gets a git tag (`v<version>`) and a GitHub Release
 created automatically by the release workflow.
 
-## Unreleased
+## 0.1.0 - 2026-10-28
 
 The big release: outdo becomes the whole task layer — package.json scripts,
 turbo, makefiles, .githooks, paths filters and compose wrappers included.

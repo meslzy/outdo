@@ -1,6 +1,6 @@
 {
 	"name": "@meslzy/outdo",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"description": "TypeScript-native task runner for Bun. Tasks live in a typed do.ts; powered by Bun Shell.",
 	"type": "module",
 	"license": "MIT",

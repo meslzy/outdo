@@ -88,7 +88,7 @@ export default defineConfig({
 				activeMatch: "/reference/",
 			},
 			{
-				text: "v0.0.1",
+				text: "v0.1.0",
 				link: "https://github.com/meslzy/outdo/releases",
 			},
 		],
