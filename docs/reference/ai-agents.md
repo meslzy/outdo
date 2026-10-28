@@ -45,6 +45,9 @@ outdo --affected=origin/main --json test
 
 # machine-readable dependency graph
 outdo graph --json
+
+# which tasks does nothing use, and which are duplicates?
+outdo usage --json | jq '{unused: [.tasks[] | select(.status == "unused").name], duplicates}'
 ```
 
 ## MCP server
@@ -70,6 +73,13 @@ Agents running on their own (loops, worktrees, CI bots) should only touch tasks 
 - Tag tasks [`readonly: true` / `destructive: true`](/guide/safety#readonly-and-destructive); `outdo ls --json` exposes the tags, so a tool-use hook can allow `readonly` tasks and block the rest.
 - Set `OUTDO_READONLY=1` in the loop's environment and outdo itself refuses everything else (exit `2`, before anything runs).
 - [protect/confirm](/guide/safety#protect-and-confirm) tasks refuse without a terminal; an agent must never add `--yes` on its own.
+
+## Cleaning up a do.ts
+
+[`outdo usage --json`](/guide/usage) is the evidence for a cleanup: every task with its runs (`you`, `agent`, `deps`, `hooks`, `typed`), `status` (`used` / `referenced` / `unused`), what references it (`usedBy`), when outdo first saw it (`firstSeen`), each flag's `given` / `runs` / `unusedValues`, and the static `duplicates`. Runs an agent makes are recorded as the agent's (`AI_AGENT`, `CLAUDECODE`, MCP), so you can see what only your agents use.
+
+- Act on `duplicates` first — they are static facts.
+- Treat `unused` as a proposal: check `trackedSince` (a young log proves little), and member scripts (`pkg#name`) that a container or turbo may run. Ask before deleting.
 
 ## The outdo skill
 

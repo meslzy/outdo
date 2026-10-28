@@ -13,6 +13,7 @@
 | `outdo graph [--dot\|--json]` | dependency graph |
 | `outdo --print-env <task> [--json]` | env with provenance + schema check |
 | `outdo doctor [--json]` | every task's `requires` checks |
+| `outdo usage [task] [--since 30d] [--all] [--no-history] [--json]` | most used / unused tasks, flags never passed, choices never picked, duplicates; never runs anything |
 | `outdo bg start <task> [flags]` | run detached; returns once its service is ready |
 | `outdo bg ps \| logs <task> [-f] \| stop [task...]` | manage background runs (`.outdo/bg/`) |
 | `outdo ci <task...> [--all] [--base rev]` | CI run: affected only, grouped logs, failure recap, GitHub annotations and step summary |
@@ -52,6 +53,7 @@ Global flags go before the task name; `--mode`, `--yes`, `--from`, `--until` may
 | --- | --- |
 | `OUTDO_READONLY=1` | refuse any task not marked `readonly` |
 | `OUTDO_NO_LOCAL=1` | a global outdo does not hand over to the repo's copy |
+| `OUTDO_NO_USAGE=1` | do not record runs in `.outdo/usage.jsonl` (off in CI anyway) |
 | `OUTDO_MODE` | set by outdo for tasks: the active mode |
 | `NODE_ENV` | env cascade name when no modes are declared |
 | `NO_COLOR` / `FORCE_COLOR` | color |

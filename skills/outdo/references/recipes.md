@@ -106,3 +106,7 @@ deploy: {
 ## Generated Dockerfile COPY blocks
 
 `outdo prune --docker`, then `COPY out/json/ ./` + `RUN bun install --frozen-lockfile` + `COPY . .`.
+
+## Leftovers after the move
+
+`outdo usage` lists what the move left behind: package.json scripts a do.ts task now hides (`"test": "turbo run test"` next to a do.ts `test`), do.ts entries whose `run` is `bun run <their own name>` (drop the `run`), aliases, and scripts that only call outdo. Delete those right away. Tasks nobody runs show up once outdo has recorded a few weeks of runs — `outdo usage --since 30d`.

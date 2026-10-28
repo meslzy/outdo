@@ -140,6 +140,10 @@ export default defineConfig({
 						text: "CI & Deploys",
 						link: "/guide/ci-cd",
 					},
+					{
+						text: "Usage & Cleanup",
+						link: "/guide/usage",
+					},
 				],
 			},
 			{

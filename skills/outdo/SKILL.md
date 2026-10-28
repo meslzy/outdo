@@ -1,6 +1,6 @@
 ---
 name: outdo
-description: Use outdo, the TypeScript task runner for Bun. Use whenever a repo has a do.ts (or the user says outdo, "bunx outdo", "run the gate", "add a task"), and before running, listing, adding or changing tasks, wiring CI (`outdo ci`, `outdo affected`), git hooks, background services (`outdo bg`), modes (--mode prod), env files, or replacing package.json scripts, turbo, makefiles or .githooks with outdo.
+description: Use outdo, the TypeScript task runner for Bun. Use whenever a repo has a do.ts (or the user says outdo, "bunx outdo", "run the gate", "add a task"), and before running, listing, adding or changing tasks, wiring CI (`outdo ci`, `outdo affected`), git hooks, background services (`outdo bg`), modes (--mode prod), env files, replacing package.json scripts, turbo, makefiles or .githooks with outdo, or cleaning up unused, dead or duplicate tasks (`outdo usage`).
 ---
 
 # outdo
@@ -46,7 +46,7 @@ export default defineTasks(
 		tsc: { desc: "Type-check", run: "bunx tsc --noEmit", readonly: true },
 		test: { deps: ["tsc"], run: "bun test" },              // deps run first, in parallel
 		gate: { steps: ["fix", "tsc", "test"] },               // one after another
-		build: { inputs: ["src/**"], outputs: ["dist/**"], run: "bun run build" }, // cached
+		build: { inputs: ["src/**"], outputs: ["dist/**"], run: "bun build src/index.ts --outdir dist" }, // cached
 		dev: { persistent: true, ready: { port: 3000 }, run: "bun --watch src/index.ts" },
 		playwright: "bunx playwright test",
 		e2e: { steps: ["dev", "playwright"] },                 // server up, tests, server stopped
@@ -100,6 +100,14 @@ outdo prune --docker                 # out/json/: package.jsons + lockfile for a
 `outdo mcp` serves every task as an MCP tool (`.mcp.json`: `{"mcpServers": {"outdo": {"command": "bunx", "args": ["outdo", "mcp"]}}}`).
 
 Commands and flags: [references/cli.md](references/cli.md). Replacing package.json scripts, turbo, makefiles, .githooks, paths-filter and compose wrappers: [references/recipes.md](references/recipes.md).
+
+## Cleaning up tasks
+
+`outdo usage --json` is the evidence: per task `you` / `agent` / `deps` / `hooks` / `typed` (shell history) counts, `status` (`used`, `referenced` = never run but something uses it, `unused`), `usedBy`, `firstSeen`, flags with `given` / `runs` / `unusedValues`, plus `trackedSince` and static `duplicates`. `outdo usage <task>` shows one task.
+
+- Fix `duplicates` first (hidden package.json scripts, `run: "bun run <own name>"`, aliases, same command or steps) — they are facts, not guesses.
+- `unused` is a proposal, not a verdict: with a young log (`trackedSince` under a few weeks) or a member script (`pkg#name`, may run in a container or via turbo), say so. List what you would delete and ask before deleting.
+- Removing a task: also remove it from other tasks' `deps`/`steps`/`finally`, hooks and CI workflows (`usedBy` lists them), then `bunx tsc --noEmit`.
 
 ## When something fails
 

@@ -52,6 +52,22 @@ turbo, makefiles, .githooks, paths filters and compose wrappers included.
   `bunx skills add meslzy/outdo`).
 - Runner flags `--mode`, `--yes`, `--from`, `--until` may follow the task name.
 
+### Usage report
+
+- Every run is recorded in `.outdo/usage.jsonl`: tasks asked for, everything
+  planned, flags given (values only for flags with choices), mode, where it
+  came from (cli, picker, watch, bg, ci, hook, mcp, nested) and whether an
+  agent ran it (`AI_AGENT`, `CLAUDECODE`, ...). Off in CI and with
+  `OUTDO_NO_USAGE=1`; never under `--dry`.
+- `outdo usage [task] [--since 30d] [--all] [--no-history] [--json]`: most
+  used tasks (you / agent / as a dependency / shell history), tasks nothing
+  uses, tasks only external files use (CI workflows, package.json scripts,
+  Dockerfiles, hooks), flags never passed, choices never picked, modes,
+  hooks, and duplicates — package.json scripts a do.ts task hides, entries
+  whose run is `bun run <own name>`, aliases, the same command or steps
+  twice, scripts that only call outdo. Shell history (zsh, bash, fish,
+  PowerShell) backfills the time before recording started.
+
 ### Caching
 
 - Declared outputs are stored after a successful run and restored when
@@ -79,8 +95,8 @@ turbo, makefiles, .githooks, paths filters and compose wrappers included.
 - In workspaces, a bare name no longer reaches member package.json scripts
   when the root has a task of that name (member do.ts tasks still fan out).
 - Unknown fields on a task object are a config error (exit 3).
-- `run`, `bg`, `ci`, `affected`, `hooks`, `prune`, `mcp`, `doctor` and
-  `skill` are commands; a task with one of those names runs with
+- `run`, `bg`, `ci`, `affected`, `hooks`, `prune`, `mcp`, `doctor`, `usage`
+  and `skill` are commands; a task with one of those names runs with
   `outdo run <name>`.
 - `-m`, `-y`, `-i` are new global short flags.
 - New error code `refused` (exit 2) for declined confirmations and

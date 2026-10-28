@@ -218,6 +218,8 @@ export default defineTasks({
 });
 ```
 
+[`outdo usage`](/guide/usage#duplicates) points out scripts a do.ts task hides, and do.ts entries whose `run` is just `bun run <their own name>`.
+
 ## Conditional and optional dependencies
 
 A dep entry can be an object instead of a plain name:

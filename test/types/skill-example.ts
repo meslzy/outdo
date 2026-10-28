@@ -12,7 +12,7 @@ export default defineTasks(
 		tsc: { desc: "Type-check", run: "bunx tsc --noEmit", readonly: true },
 		test: { deps: ["tsc"], run: "bun test" },              // deps run first, in parallel
 		gate: { steps: ["fix", "tsc", "test"] },               // one after another
-		build: { inputs: ["src/**"], outputs: ["dist/**"], run: "bun run build" }, // cached
+		build: { inputs: ["src/**"], outputs: ["dist/**"], run: "bun build src/index.ts --outdir dist" }, // cached
 		dev: { persistent: true, ready: { port: 3000 }, run: "bun --watch src/index.ts" },
 		playwright: "bunx playwright test",
 		e2e: { steps: ["dev", "playwright"] },                 // server up, tests, server stopped

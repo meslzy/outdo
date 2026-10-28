@@ -2,7 +2,7 @@
 
 **Docs:** [meslzy.github.io/outdo](https://meslzy.github.io/outdo/)
 
-A TypeScript-native task runner for [Bun](https://bun.com). Tasks live in a typed `do.ts` at your repo root — no YAML, no Makefile, no DSL. A task can be one command string or a typed object; `package.json` scripts are tasks too. Full editor support, compile-time checking of deps and steps, schema-validated environments and flags, a parallel DAG scheduler with ordered steps, cleanup tasks and typed data flow, fingerprint caching that restores deleted outputs and can explain itself, services with readiness probes (in the foreground or in the background), modes with per-mode env files, confirmation for dangerous tasks, workspace `^deps` that replace turbo, a CI mode with GitHub annotations, git hooks, ssh deploys, an MCP server and an agent skill. Zero runtime dependencies.
+A TypeScript-native task runner for [Bun](https://bun.com). Tasks live in a typed `do.ts` at your repo root — no YAML, no Makefile, no DSL. A task can be one command string or a typed object; `package.json` scripts are tasks too. Full editor support, compile-time checking of deps and steps, schema-validated environments and flags, a parallel DAG scheduler with ordered steps, cleanup tasks and typed data flow, fingerprint caching that restores deleted outputs and can explain itself, services with readiness probes (in the foreground or in the background), modes with per-mode env files, confirmation for dangerous tasks, workspace `^deps` that replace turbo, a CI mode with GitHub annotations, git hooks, ssh deploys, a usage report that finds dead and duplicate tasks, an MCP server and an agent skill. Zero runtime dependencies.
 
 ```ts
 // do.ts
@@ -76,6 +76,7 @@ outdo --affected test      # only tasks touched by git changes vs the base branc
 bunx outdo ci gate         # CI: changed tasks only, folded logs, annotations, summary
 outdo --json build         # full run report: status, timing, cache, critical path
 outdo --print-env deploy   # which .env file set what + schema verdict
+outdo usage                # most used, never used, flags never passed, duplicates
 outdo mcp                  # every task as an MCP tool
 ```
 
@@ -211,6 +212,10 @@ Each fingerprint component is hashed separately, so `outdo explain <task>` can t
 - `hooks: { "pre-commit": { steps: [...], restage: true } }` + `outdo hooks install` — git hooks from `do.ts`; formatter changes to fully staged files are re-staged.
 - `ctx.ssh` deploys, `outdo prune --docker` for the dependency layer of an image, and `@meslzy/outdo/compose` for the usual `up` / `down` / `logs <svc>` / `shell <svc>` tasks.
 
+## Usage: dead and duplicate tasks
+
+Every run is recorded locally in `.outdo/usage.jsonl` — what was asked for, which flags (values only for `choices` flags), the mode, and whether you or an agent ran it. `outdo usage` reads it back with your shell history and the files that call outdo (CI workflows, `package.json` scripts, Dockerfiles, tasks' code) and lists the most used tasks, the ones nothing uses, flags never passed, choices never picked, and duplicates: `package.json` scripts a do.ts task hides, tasks that only run another task, the same command or steps twice. `outdo usage <task>` shows one task; `--json` is for agents doing the cleanup. Nothing is recorded in CI or with `OUTDO_NO_USAGE=1`.
+
 ## Watch mode
 
 `outdo --watch <task>` runs the plan, then watches each task's `watch` (or `inputs`) globs. On change: affected tasks + their dependents re-run in topo order; services whose globs match are restarted; changes arriving mid-run supersede it. `OUTDO_WATCH_POLL=1` forces the polling backend (Docker volumes, NFS).
@@ -245,6 +250,7 @@ outdo ls --json              Machine-readable task model
 outdo graph [--dot] [--json] Dependency graph (mermaid / graphviz / JSON)
 outdo explain <task>         Why each planned task will run or skip (never runs)
 outdo doctor                 Every task's "requires" checks
+outdo usage [task]           Most used, never used, duplicates (--since 30d, --json)
 outdo --print-env <task>     Env provenance + schema validation (never runs)
 outdo bg start|ps|logs|stop  Background runs
 outdo ci <task> / ci init    CI run / write the workflow
@@ -268,7 +274,7 @@ Exit codes: `0` ok · `1` task failure · `2` usage (or refused) · `3` config/e
 
 ## For AI agents
 
-`outdo mcp` serves every task as an MCP tool with a typed input schema and read-only / destructive hints. `bunx skills add meslzy/outdo` (or `outdo skill install`) installs a skill that teaches agents outdo. `outdo ls --json` exposes the full task model (flags, deps, steps, tags), `--dry=json` previews any plan, `outdo --json explain <task>` diagnoses cache decisions down to the changed file, and `outdo --json <task>` ends with a complete run report. `OUTDO_READONLY=1` keeps an unattended agent to read-only tasks; tasks that ask for confirmation refuse without a terminal.
+`outdo mcp` serves every task as an MCP tool with a typed input schema and read-only / destructive hints. `bunx skills add meslzy/outdo` (or `outdo skill install`) installs a skill that teaches agents outdo. `outdo ls --json` exposes the full task model (flags, deps, steps, tags), `--dry=json` previews any plan, `outdo --json explain <task>` diagnoses cache decisions down to the changed file, and `outdo --json <task>` ends with a complete run report, and `outdo usage --json` is the evidence for cleaning up a `do.ts`. `OUTDO_READONLY=1` keeps an unattended agent to read-only tasks; tasks that ask for confirmation refuse without a terminal.
 
 ## Performance
 

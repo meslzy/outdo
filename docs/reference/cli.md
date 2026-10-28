@@ -16,6 +16,7 @@
 | `outdo explain <task> [--json]` | why each planned task will run or skip (cache diagnosis, inputs, steps, backend); never runs |
 | `outdo graph [--dot] [--json]` | dependency graph as mermaid, graphviz dot, or JSON |
 | `outdo doctor [--json]` | run every task's [`requires`](/guide/safety#requires-and-doctor) checks; exit `1` if any fail |
+| `outdo usage [task] [--since <span>] [--all] [--no-history] [--json]` | [what runs most, what never runs](/guide/usage): unused tasks, flags never passed, choices never picked, modes, hooks, duplicates; never runs anything |
 | `outdo --print-env <task> [--json]` | resolved env with per-key provenance + schema verdict; never runs |
 
 ### Background runs
@@ -85,9 +86,12 @@ Global flags go **before** the task name; everything after the task name belongs
 | `NO_COLOR` / `FORCE_COLOR` | color output off/on (flag `--color` wins) |
 | `OUTDO_WATCH_POLL=1` | force the polling watch backend |
 | `OUTDO_LOG=debug` | internal debug logging on stderr |
+| `OUTDO_NO_USAGE=1` | don't record runs in [`.outdo/usage.jsonl`](/guide/usage#what-gets-recorded) (also off whenever `CI` is set) |
+| `AI_AGENT`, `CLAUDECODE`, `CODEX_SANDBOX`, `CURSOR_AGENT`, `GEMINI_CLI` | mark a run as an agent's in the usage log |
+| `HISTFILE` | an extra shell history file for `outdo usage` (besides `~/.zsh_history`, `~/.bash_history`, fish and PowerShell history) |
 | `GITHUB_ACTIONS`, `GITHUB_BASE_REF`, `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH`, `GITHUB_STEP_SUMMARY`, `GITHUB_OUTPUT` | read by `outdo ci`, `--affected` and `outdo affected` ([details](/guide/ci-cd)) |
 
-outdo sets `OUTDO_MODE` (the active mode) for everything it runs. `OUTDO_SSH` and `OUTDO_DOCKER` (a JSON argv) replace the `ssh` / `docker` binaries — meant for tests.
+outdo sets `OUTDO_MODE` (the active mode) and `OUTDO_NESTED=1` (so an outdo run started by a task is recorded as nested) for everything it runs. `OUTDO_SSH` and `OUTDO_DOCKER` (a JSON argv) replace the `ssh` / `docker` binaries — meant for tests.
 
 ## The global binary
 

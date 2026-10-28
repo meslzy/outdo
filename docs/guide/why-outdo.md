@@ -21,6 +21,7 @@ Every tool below is good at what it was built for. This page is the honest versi
 | Git-affected runs | — | — | — | — | — | ✓ `--filter=[ref]` | ✓ `nx affected` | — | ✓ `--affected` |
 | Cache explainability | — | — | — | — | — | `--summarize` | ✓ Nx Cloud UI | — | **✓ `explain` — per-component diff, local** |
 | Run report / trace | — | — | — | — | — | `--summarize` JSON | ✓ | — | **✓ `--json` report + Chrome trace** |
+| Unused / duplicate tasks | — | — | — | — | — | — | — | — | **✓ `outdo usage` — local run log + shell history** |
 | Runtime needed | none (C) | none (Rust) | none (Go) | none (Rust) | Node | Node/npm | Node | Bun | **Bun ≥ 1.4 only** |
 | Since / backing | 1988, FSF | 2016, community | ~2017, community | Rust, community | 2022, Google repo | 2021, Vercel | 2017, Nx Ltd | Oven | **2026, one maintainer** |
 

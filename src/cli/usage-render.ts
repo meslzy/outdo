@@ -135,7 +135,7 @@ function header(report: UsageReport): string {
 		parts.push(
 			`shell history: ${report.history.calls} call${report.history.calls === 1 ? "" : "s"}${
 				report.history.from !== undefined ? ` since ${day(report.history.from, report.now)}` : ""
-			}`,
+			} (any directory)`,
 		);
 	}
 	if (report.since !== undefined) {
