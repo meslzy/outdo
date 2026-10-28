@@ -55,11 +55,14 @@ describe("parallel DAG execution", () => {
 	});
 
 	test("-j 1 serializes the branches", async () => {
-		const { exitCode, stdout } = await runCli(DIAMOND, [
+		const { exitCode, stdout, stderr } = await runCli(DIAMOND, [
 			"-j",
 			"1",
 			"d",
 		]);
+		if (exitCode !== 0) {
+			console.error(stdout, stderr);
+		}
 		expect(exitCode).toBe(0);
 		const stamps = parseStamps(stdout);
 		const bRange = [
